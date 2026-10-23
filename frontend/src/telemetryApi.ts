@@ -1,5 +1,5 @@
 import { LocalApiClient, LocalApiError } from './localApi';
-import type { ConfigSnapshot, TelemetrySnapshot } from './types';
+import type { ConfigSnapshot, ControlSnapshot, TelemetrySnapshot } from './types';
 
 export class TelemetryClient {
   private api = new LocalApiClient();
@@ -12,7 +12,7 @@ export class TelemetryClient {
       if (cause instanceof LocalApiError) {
         if (cause.status === 409) throw new Error('Close other device-control tools before reading.');
         if (cause.status === 423) throw new Error('A device read is already running.');
-        if (cause.status === 503) throw new Error('Hardware read was not confirmed. Check the receiver and close other control tools.');
+        if (cause.status === 503) throw new Error('Hardware read was not confirmed. Check the device connection and close other control tools.');
       }
       throw cause;
     }
@@ -45,5 +45,14 @@ export class TelemetryClient {
       throw new Error('Unexpected telemetry response.');
     }
     return data as ConfigSnapshot;
+  }
+
+  async readControl(): Promise<ControlSnapshot> {
+    const data = await this.requestRead('/api/devices/ajazz_ak820_pro/control/read');
+    if (data.device_id !== 'ajazz_ak820_pro' || data.responded !== true
+      || typeof data.recorded_at !== 'string' || !/^\d{4}-\d{2}-\d{2}T/.test(data.recorded_at) || !Number.isFinite(Date.parse(data.recorded_at))) {
+      throw new Error('Unexpected control response.');
+    }
+    return data as ControlSnapshot;
   }
 }

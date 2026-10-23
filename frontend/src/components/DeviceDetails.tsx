@@ -1,11 +1,13 @@
 import type { Device, DeviceCapabilities } from '../types';
 import { DeviceMetrics, DeviceStatus } from './DeviceCard';
 import { TelemetryControls } from './TelemetryControls';
+import { KeyboardControl } from './KeyboardControl';
 
 const capabilities: [keyof DeviceCapabilities, string][] = [
   ['usb_discovery', 'USB discovery'], ['battery_read', 'Battery reading'],
   ['dpi_read', 'DPI reading'], ['polling_rate_read', 'Polling rate reading'],
   ['firmware_read', 'Firmware version reading'], ['settings_write', 'Settings changes'],
+  ['control_read', 'Wired control check'],
 ];
 
 export function DeviceDetails({ device, stale, onTelemetryRead }: { device: Device; stale: boolean; onTelemetryRead?: () => Promise<void> }) {
@@ -22,6 +24,7 @@ export function DeviceDetails({ device, stale, onTelemetryRead }: { device: Devi
           <div><dt>Wireless link</dt><dd>{connection.wireless_link_verified === null ? 'Not verified' : connection.wireless_link_verified ? 'Verified' : 'Disconnected'}</dd></div>
           <div><dt>Attached USB IDs</dt><dd className="usb-ids">{device.connected_usb_ids.join(' · ') || 'None'}</dd></div>
         </dl>
+        {onTelemetryRead && device.id === 'ajazz_ak820_pro' && device.capabilities.control_read && <KeyboardControl device={device} stale={stale} onUpdated={onTelemetryRead} />}
       </section>
       <section className="panel" aria-labelledby="telemetry-title">
         <h2 id="telemetry-title">Telemetry</h2>

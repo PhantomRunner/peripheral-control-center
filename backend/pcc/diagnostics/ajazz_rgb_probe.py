@@ -205,21 +205,30 @@ def observe(transport: FeatureTransport) -> dict:
             "persistence_verified": False, "device_model_verified": False, "adapter_enabled": False}
 
 
+def observe_control(transport: FeatureTransport) -> dict:
+    if len(transport.get_feature()) != 64:
+        raise ProbeBlocked("Control feature report is incomplete.")
+    return {"status": "control_report_received", "usb_id": "0c45:8009",
+            "actual_rgb": None, "battery_percent": None, "firmware_version": None,
+            "device_model_verified": False, "adapter_enabled": False}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--check-access", action="store_true")
     mode.add_argument("--execute", action="store_true")
+    mode.add_argument("--read-control", action="store_true", help="One GET only; never send a Feature SET.")
     parser.add_argument("--vendor-tools-closed", action="store_true")
     args = parser.parse_args(argv)
-    if not args.check_access and not args.execute:
+    if not args.check_access and not args.execute and not args.read_control:
         print(json.dumps(plan(), indent=2))
         return 0
     transport: HidrawFeatures | None = None
     try:
         if os.geteuid() == 0:
             raise ProbeBlocked("Do not run as root.")
-        if args.execute and not args.vendor_tools_closed:
+        if (args.execute or args.read_control) and not args.vendor_tools_closed:
             raise ProbeBlocked("Close competing tools and confirm closure before execution.")
         target = discover_target()
         if args.check_access:
@@ -228,7 +237,7 @@ def main(argv: list[str] | None = None) -> int:
                               "uninspectable_process_count": missing, "device_io": False, "ownership_verified": False}))
             return 2 if missing else 0
         with process_deadline(), open_features(target, vendor_tools_closed=args.vendor_tools_closed) as transport:
-            result = observe(transport)
+            result = observe_control(transport) if args.read_control else observe(transport)
             result["diagnostics"] = transport.diagnostics()
         print(json.dumps(result, indent=2))
         return 0

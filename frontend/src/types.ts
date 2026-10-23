@@ -5,6 +5,7 @@ export type DeviceCapabilities = {
   polling_rate_read: boolean;
   firmware_read: boolean;
   settings_write: boolean;
+  control_read: boolean;
 };
 
 export type Device = {
@@ -19,6 +20,8 @@ export type Device = {
   firmware_version: string | null;
   telemetry_updated_at: string | null;
   settings_updated_at: string | null;
+  control_responded: boolean | null;
+  control_checked_at: string | null;
   driver_state: 'not_implemented' | 'read_only' | 'read_write';
   write_options: { dpi: number[]; polling_rate_hz: number[]; profile_index: number; active_stage_index: number; firmware_version: string } | null;
   note: string;
@@ -45,5 +48,11 @@ export type ConfigSnapshot = {
   polling_rate_hz: number;
   active_profile_index: number;
   active_stage_index: number;
+  recorded_at: string;
+};
+
+export type ControlSnapshot = {
+  device_id: 'ajazz_ak820_pro';
+  responded: true;
   recorded_at: string;
 };

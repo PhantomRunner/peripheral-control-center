@@ -22,3 +22,13 @@ it.each([
     .mockResolvedValueOnce(Response.json(value)));
   await expect(new TelemetryClient().readSettings()).rejects.toThrow('Unexpected telemetry response.');
 });
+
+it.each([
+  { device_id: 'other', responded: true, recorded_at: '2026-10-23T19:23:29Z' },
+  { device_id: 'ajazz_ak820_pro', responded: false, recorded_at: '2026-10-23T19:23:29Z' },
+  { device_id: 'ajazz_ak820_pro', responded: true, recorded_at: 'unknown' },
+])('rejects malformed wired-control responses (%#)', async (value) => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(Response.json({ token: 'a'.repeat(43), expires_in_seconds: 1800 }))
+    .mockResolvedValueOnce(Response.json(value)));
+  await expect(new TelemetryClient().readControl()).rejects.toThrow('Unexpected control response.');
+});

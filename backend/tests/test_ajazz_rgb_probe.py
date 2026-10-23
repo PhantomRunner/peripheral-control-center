@@ -194,3 +194,17 @@ def test_execute_requires_operator_confirmation_and_redacts_errors(monkeypatch, 
     discover.assert_not_called()
     assert probe.main(["--execute", "--vendor-tools-closed"]) == 2
     assert "private" not in capsys.readouterr().out
+
+
+def test_control_check_only_receives_one_feature_and_never_sends_or_infers_values():
+    transport = FakeFeatures()
+    result = probe.observe_control(transport)
+    assert transport.reads == 1 and transport.sent == []
+    assert result["status"] == "control_report_received"
+    assert result["actual_rgb"] is result["battery_percent"] is result["firmware_version"] is None
+
+
+def test_read_control_flag_cannot_be_combined_with_write_execution(monkeypatch):
+    monkeypatch.setattr(probe, "discover_target", Mock(side_effect=AssertionError("No device IO")))
+    with pytest.raises(SystemExit):
+        probe.main(["--read-control", "--execute", "--vendor-tools-closed"])

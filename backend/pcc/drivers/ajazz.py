@@ -1,8 +1,8 @@
-"""AJAZZ AK820 Pro USB presence only; no verified wireless link or HID reads."""
+"""AJAZZ discovery and manual control-response support; no invented telemetry."""
 
 from typing import AbstractSet
 
-from pcc.models import DeviceConnection, DeviceSummary
+from pcc.models import DeviceCapabilities, DeviceConnection, DeviceSummary
 
 
 class AjazzAdapter:
@@ -16,6 +16,8 @@ class AjazzAdapter:
             id="ajazz_ak820_pro",
             name="AJAZZ AK820 Pro",
             kind="keyboard",
+            capabilities=DeviceCapabilities(control_read=True),
+            driver_state="read_only",
             status=(
                 "wired_detected" if wired else
                 "receiver_detected" if receiver else "offline"

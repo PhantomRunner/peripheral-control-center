@@ -13,6 +13,7 @@ class DeviceCapabilities(BaseModel):
     polling_rate_read: bool = False
     firmware_read: bool = False
     settings_write: bool = False
+    control_read: bool = False
 
 
 class DeviceConnection(BaseModel):
@@ -44,6 +45,8 @@ class DeviceSummary(BaseModel):
     firmware_version: str | None = None
     telemetry_updated_at: datetime | None = None
     settings_updated_at: datetime | None = None
+    control_responded: bool | None = None
+    control_checked_at: datetime | None = None
     capabilities: DeviceCapabilities = Field(default_factory=DeviceCapabilities)
     connection: DeviceConnection = Field(default_factory=DeviceConnection)
     driver_state: Literal["not_implemented", "read_only", "read_write"] = "not_implemented"

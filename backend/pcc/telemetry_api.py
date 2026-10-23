@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 
 from .config_telemetry import ConfigSnapshot
+from .keyboard_control import ControlSnapshot
 from .telemetry import ReadTelemetryRequest, TelemetryBusy, TelemetryConsentRequired, TelemetryService, TelemetrySnapshot, TelemetryUnavailable
 
 router = APIRouter(prefix="/api/devices")
@@ -37,3 +38,15 @@ def read_pulsar_config(body: ReadTelemetryRequest, service: Annotated[TelemetryS
         raise HTTPException(423, "A hardware read is already running.") from None
     except TelemetryUnavailable:
         raise HTTPException(503, "DPI/polling read was not confirmed. Check device access and close other control tools.") from None
+
+
+@router.post("/ajazz_ak820_pro/control/read", response_model=ControlSnapshot)
+def read_keyboard_control(body: ReadTelemetryRequest, service: Annotated[TelemetryService, Depends(get_telemetry_service)]) -> ControlSnapshot:
+    try:
+        return service.read_control(vendor_tools_closed=body.vendor_tools_closed)
+    except TelemetryConsentRequired:
+        raise HTTPException(409, "Close other device-control tools before reading.") from None
+    except TelemetryBusy:
+        raise HTTPException(423, "A hardware read is already running.") from None
+    except TelemetryUnavailable:
+        raise HTTPException(503, "Wired control response was not confirmed. Check the USB cable and close control tools.") from None

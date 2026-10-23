@@ -16,6 +16,7 @@ from pydantic import Field, ValidationError
 
 from .drivers import registry
 from .config_telemetry import ConfigReadUnavailable, ConfigSnapshot, read_pulsar_config
+from .keyboard_control import ControlSnapshot, ControlUnavailable, read_ajazz_control
 from .models import DeviceSummary
 from .settings import StrictModel
 
@@ -77,9 +78,12 @@ def read_pulsar_snapshot() -> TelemetrySnapshot:
 
 class TelemetryService:
     def __init__(self, reader: Callable[[], TelemetrySnapshot] = read_pulsar_snapshot,
-                 *, config_reader: Callable[[], ConfigSnapshot] = read_pulsar_config) -> None:
+                 *, config_reader: Callable[[], ConfigSnapshot] = read_pulsar_config,
+                 control_reader: Callable[[], ControlSnapshot] = read_ajazz_control) -> None:
         self._reader = reader
         self._config_reader = config_reader
+        self._control_reader = control_reader
+        self._control_snapshot: ControlSnapshot | None = None
         self._snapshot: TelemetrySnapshot | None = None
         self._config_snapshot: ConfigSnapshot | None = None
         self._config_generation = 0
@@ -90,6 +94,12 @@ class TelemetryService:
         devices = registry.discover_devices()
         with self._state_lock:
             for device in devices:
+                if device.id == "ajazz_ak820_pro":
+                    if not device.connection.wired_usb_present:
+                        self._control_snapshot = None
+                    elif self._control_snapshot is not None:
+                        device.control_responded = True
+                        device.control_checked_at = self._control_snapshot.recorded_at
                 if device.id != "pulsar_susanto_x":
                     continue
                 if device.status == "offline":
@@ -154,3 +164,23 @@ class TelemetryService:
         with self._state_lock:
             self._config_generation += 1
             self._config_snapshot = None
+
+    def read_control(self, *, vendor_tools_closed: bool) -> ControlSnapshot:
+        if vendor_tools_closed is not True:
+            raise TelemetryConsentRequired("Close other device-control tools before reading.")
+        if not self._operation_lock.acquire(blocking=False):
+            raise TelemetryBusy("A hardware read is already running.")
+        try:
+            devices = registry.discover_devices()
+            if not any(d.id == "ajazz_ak820_pro" and d.connection.wired_usb_present for d in devices):
+                raise ControlUnavailable
+            snapshot = self._control_reader()
+            with self._state_lock:
+                self._control_snapshot = snapshot
+            return snapshot
+        except (ControlUnavailable, OSError):
+            with self._state_lock:
+                self._control_snapshot = None
+            raise TelemetryUnavailable("Wired control response was not confirmed.") from None
+        finally:
+            self._operation_lock.release()

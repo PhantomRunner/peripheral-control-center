@@ -6,12 +6,13 @@ export const mouse: Device = {
   battery_percent: null, dpi: null, polling_rate_hz: null, firmware_version: null,
   telemetry_updated_at: null,
   settings_updated_at: null,
+  control_responded: null, control_checked_at: null,
   driver_state: 'not_implemented',
   write_options: null,
   note: '8K receiver detected. The mouse link and settings are not read yet.',
   capabilities: {
     usb_discovery: true, battery_read: false, dpi_read: false,
-    polling_rate_read: false, firmware_read: false, settings_write: false,
+    polling_rate_read: false, firmware_read: false, settings_write: false, control_read: false,
   },
   connection: {
     source: 'usb_enumeration', wired_usb_present: false,

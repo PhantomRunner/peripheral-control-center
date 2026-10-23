@@ -2,7 +2,7 @@ import type { Device, DeviceCapabilities } from './types';
 
 const capabilityKeys: (keyof DeviceCapabilities)[] = [
   'usb_discovery', 'battery_read', 'dpi_read', 'polling_rate_read',
-  'firmware_read', 'settings_write',
+  'firmware_read', 'settings_write', 'control_read',
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -30,6 +30,9 @@ function isDevice(value: unknown): value is Device {
       && /^\d{4}-\d{2}-\d{2}T/.test(value.telemetry_updated_at) && Number.isFinite(Date.parse(value.telemetry_updated_at))))
     && (value.settings_updated_at === null || (typeof value.settings_updated_at === 'string'
       && /^\d{4}-\d{2}-\d{2}T/.test(value.settings_updated_at) && Number.isFinite(Date.parse(value.settings_updated_at))))
+    && (value.control_responded === null || typeof value.control_responded === 'boolean')
+    && (value.control_checked_at === null || (typeof value.control_checked_at === 'string'
+      && /^\d{4}-\d{2}-\d{2}T/.test(value.control_checked_at) && Number.isFinite(Date.parse(value.control_checked_at))))
     && (value.driver_state === 'not_implemented' || value.driver_state === 'read_only' || value.driver_state === 'read_write')
     && (value.write_options === null || (isRecord(value.write_options)
       && Array.isArray(value.write_options.dpi) && value.write_options.dpi.every((n) => typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= 32000)

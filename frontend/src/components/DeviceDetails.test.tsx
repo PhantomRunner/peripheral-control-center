@@ -25,7 +25,7 @@ describe('device details', () => {
     expect(screen.getByText('USB not detected')).toBeVisible();
     const support = screen.getByRole('region', { name: 'Adapter support' });
     expect(within(support).getByText('Available')).toBeVisible();
-    expect(within(support).getAllByText('Not implemented')).toHaveLength(5);
+    expect(within(support).getAllByText('Not implemented')).toHaveLength(6);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
