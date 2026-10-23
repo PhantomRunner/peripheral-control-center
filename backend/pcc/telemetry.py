@@ -1,7 +1,7 @@
-"""Manual battery/firmware reads for the two PSSTX21 queries observed on 2026-10-23.
+"""Manual PSSTX21 reads observed on 2026-10-23, with independent timestamps.
 
 Enumeration only attaches the last timestamped observation. It never starts HID IO.
-The standalone child retains descriptor/ownership checks and the two-output budget.
+Standalone children retain descriptor/ownership checks and fixed output budgets.
 """
 
 import subprocess
@@ -15,6 +15,7 @@ from typing import Literal
 from pydantic import Field, ValidationError
 
 from .drivers import registry
+from .config_telemetry import ConfigReadUnavailable, ConfigSnapshot, read_pulsar_config
 from .models import DeviceSummary
 from .settings import StrictModel
 
@@ -75,9 +76,12 @@ def read_pulsar_snapshot() -> TelemetrySnapshot:
 
 
 class TelemetryService:
-    def __init__(self, reader: Callable[[], TelemetrySnapshot] = read_pulsar_snapshot) -> None:
+    def __init__(self, reader: Callable[[], TelemetrySnapshot] = read_pulsar_snapshot,
+                 *, config_reader: Callable[[], ConfigSnapshot] = read_pulsar_config) -> None:
         self._reader = reader
+        self._config_reader = config_reader
         self._snapshot: TelemetrySnapshot | None = None
+        self._config_snapshot: ConfigSnapshot | None = None
         self._state_lock = threading.Lock()
         self._operation_lock = threading.Lock()
 
@@ -89,10 +93,16 @@ class TelemetryService:
                     continue
                 if device.status == "offline":
                     self._snapshot = None
-                elif self._snapshot is not None:
-                    device.battery_percent = self._snapshot.battery_percent
-                    device.firmware_version = self._snapshot.firmware_version
-                    device.telemetry_updated_at = self._snapshot.recorded_at
+                    self._config_snapshot = None
+                else:
+                    if self._snapshot is not None:
+                        device.battery_percent = self._snapshot.battery_percent
+                        device.firmware_version = self._snapshot.firmware_version
+                        device.telemetry_updated_at = self._snapshot.recorded_at
+                    if self._config_snapshot is not None:
+                        device.dpi = self._config_snapshot.dpi
+                        device.polling_rate_hz = self._config_snapshot.polling_rate_hz
+                        device.settings_updated_at = self._config_snapshot.recorded_at
         return devices
 
     def read(self, *, vendor_tools_closed: bool) -> TelemetrySnapshot:
@@ -112,5 +122,25 @@ class TelemetryService:
             with self._state_lock:
                 self._snapshot = None
             raise TelemetryUnavailable("Battery/firmware read was not confirmed.") from None
+        finally:
+            self._operation_lock.release()
+
+    def read_config(self, *, vendor_tools_closed: bool) -> ConfigSnapshot:
+        if vendor_tools_closed is not True:
+            raise TelemetryConsentRequired("Close other device-control tools before reading.")
+        if not self._operation_lock.acquire(blocking=False):
+            raise TelemetryBusy("A hardware read is already running.")
+        try:
+            devices = registry.discover_devices()
+            if not any(device.id == "pulsar_susanto_x" and device.status == "receiver_detected" for device in devices):
+                raise ConfigReadUnavailable
+            snapshot = self._config_reader()
+            with self._state_lock:
+                self._config_snapshot = snapshot
+            return snapshot
+        except (ConfigReadUnavailable, OSError):
+            with self._state_lock:
+                self._config_snapshot = None
+            raise TelemetryUnavailable("DPI/polling read was not confirmed.") from None
         finally:
             self._operation_lock.release()

@@ -18,6 +18,7 @@ export type Device = {
   polling_rate_hz: number | null;
   firmware_version: string | null;
   telemetry_updated_at: string | null;
+  settings_updated_at: string | null;
   driver_state: 'not_implemented' | 'read_only';
   note: string;
   capabilities: DeviceCapabilities;
@@ -34,5 +35,14 @@ export type TelemetrySnapshot = {
   battery_percent: number;
   charging: boolean;
   firmware_version: string | null;
+  recorded_at: string;
+};
+
+export type ConfigSnapshot = {
+  device_id: 'pulsar_susanto_x';
+  dpi: number;
+  polling_rate_hz: number;
+  active_profile_index: number;
+  active_stage_index: number;
   recorded_at: string;
 };

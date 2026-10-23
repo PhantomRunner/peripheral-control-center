@@ -71,8 +71,8 @@ def test_default_registry_preserves_usb_presence_and_unknown_telemetry(
         assert device.capabilities.model_dump() == {
             "usb_discovery": True,
             "battery_read": device.kind == "mouse",
-            "dpi_read": False,
-            "polling_rate_read": False,
+            "dpi_read": device.kind == "mouse",
+            "polling_rate_read": device.kind == "mouse",
             "firmware_read": device.kind == "mouse",
             "settings_write": False,
         }
@@ -82,7 +82,7 @@ def test_default_registry_preserves_usb_presence_and_unknown_telemetry(
     assert keyboard.connection.wired_usb_present == ("0c45:8009" in present)
     assert keyboard.connection.receiver_usb_present == ("0c45:fdfd" in present)
     if mouse.status == "receiver_detected":
-        assert mouse.note == "8K receiver detected. Battery and firmware can be read manually; wireless link is not verified."
+        assert mouse.note == "8K receiver detected. Readings update manually; wireless link is not verified."
     if keyboard.status == "receiver_detected":
         assert keyboard.note == (
             "Only the 2.4 GHz receiver is detected; this does not confirm keyboard connectivity."

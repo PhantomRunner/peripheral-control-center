@@ -1,0 +1,22 @@
+{
+  "record_type": "redacted_live_observation_not_wire_capture",
+  "recorded_at_utc": "2026-10-23T18:30:12Z",
+  "owner_reported_device": "Pulsar Susanto-X PSSTX21",
+  "descriptor_sha256": "655f29b1550cd7903311346991d3a5dc54988ab7326ac30cdd6284a784489c5e",
+  "retries": 0,
+  "raw_reports_included": false,
+  "result": {
+    "status": "candidate_current_settings_observed",
+    "usb_id": "3710:5406",
+    "identity": {"cid": 87, "mid": 39, "type": 5},
+    "active_profile_index": 0,
+    "stage_count": 5,
+    "active_stage_index": 2,
+    "observed": {"dpi_candidate": 1200, "stored_polling_rate_hz_candidate": 1000},
+    "setting_records": {"polling_hex": "01 54", "active_dpi_hex": "77 77 00 67"},
+    "adapter_enabled": false,
+    "settings_writes": 0,
+    "output_reports_sent": 12,
+    "ownership_basis": "operator_closed_vendor_tools_and_visible_handles_checked"
+  }
+}

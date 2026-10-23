@@ -35,6 +35,7 @@ class DeviceSummary(BaseModel):
     polling_rate_hz: int | None = None
     firmware_version: str | None = None
     telemetry_updated_at: datetime | None = None
+    settings_updated_at: datetime | None = None
     capabilities: DeviceCapabilities = Field(default_factory=DeviceCapabilities)
     connection: DeviceConnection = Field(default_factory=DeviceConnection)
     driver_state: Literal["not_implemented", "read_only"] = "not_implemented"

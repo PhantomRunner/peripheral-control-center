@@ -10,3 +10,15 @@ it.each([
     .mockResolvedValueOnce(Response.json(value)));
   await expect(new TelemetryClient().read()).rejects.toThrow('Unexpected telemetry response.');
 });
+
+const settings = { device_id: 'pulsar_susanto_x', dpi: 1200, polling_rate_hz: 1000, active_profile_index: 0, active_stage_index: 2, recorded_at: '2026-10-23T18:30:12Z' };
+
+it.each([
+  { ...settings, device_id: 'other' }, { ...settings, dpi: 0 },
+  { ...settings, polling_rate_hz: 123 }, { ...settings, active_profile_index: 4 },
+  { ...settings, active_stage_index: 1.5 }, { ...settings, recorded_at: 'unknown' },
+])('rejects malformed current-settings responses (%#)', async (value) => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(Response.json({ token: 'a'.repeat(43), expires_in_seconds: 1800 }))
+    .mockResolvedValueOnce(Response.json(value)));
+  await expect(new TelemetryClient().readSettings()).rejects.toThrow('Unexpected telemetry response.');
+});

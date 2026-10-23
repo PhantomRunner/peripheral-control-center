@@ -28,6 +28,8 @@ function isDevice(value: unknown): value is Device {
     && (value.firmware_version === null || typeof value.firmware_version === 'string')
     && (value.telemetry_updated_at === null || (typeof value.telemetry_updated_at === 'string'
       && /^\d{4}-\d{2}-\d{2}T/.test(value.telemetry_updated_at) && Number.isFinite(Date.parse(value.telemetry_updated_at))))
+    && (value.settings_updated_at === null || (typeof value.settings_updated_at === 'string'
+      && /^\d{4}-\d{2}-\d{2}T/.test(value.settings_updated_at) && Number.isFinite(Date.parse(value.settings_updated_at))))
     && (value.driver_state === 'not_implemented' || value.driver_state === 'read_only')
     && typeof value.note === 'string'
     && capabilityKeys.every((key) => typeof capabilities[key] === 'boolean')

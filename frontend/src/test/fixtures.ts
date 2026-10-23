@@ -5,6 +5,7 @@ export const mouse: Device = {
   status: 'receiver_detected', connected_usb_ids: ['3710:5406'],
   battery_percent: null, dpi: null, polling_rate_hz: null, firmware_version: null,
   telemetry_updated_at: null,
+  settings_updated_at: null,
   driver_state: 'not_implemented',
   note: '8K receiver detected. The mouse link and settings are not read yet.',
   capabilities: {

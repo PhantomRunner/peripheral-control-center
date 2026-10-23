@@ -25,10 +25,11 @@ export function DeviceDetails({ device, stale, onTelemetryRead }: { device: Devi
       </section>
       <section className="panel" aria-labelledby="telemetry-title">
         <h2 id="telemetry-title">Telemetry</h2>
-        <p className="device-note">{device.capabilities.battery_read || device.capabilities.firmware_read ? 'Battery and firmware update only on request. Unsupported readings stay unavailable.' : 'Values stay unavailable until a validated live read is implemented.'}</p>
+        <p className="device-note">{device.capabilities.battery_read || device.capabilities.firmware_read ? 'Readings update only on request. Polling is the stored device setting. Unsupported readings stay unavailable.' : 'Values stay unavailable until a validated live read is implemented.'}</p>
         <DeviceMetrics device={device} />
         <dl className="facts"><div><dt>Firmware version</dt><dd>{device.firmware_version ?? '—'}</dd></div></dl>
         {device.telemetry_updated_at && <p className="device-note">Last hardware read: {new Date(device.telemetry_updated_at).toLocaleString()}</p>}
+        {device.settings_updated_at && <p className="device-note">Last DPI/polling read: {new Date(device.settings_updated_at).toLocaleString()}</p>}
         {onTelemetryRead && device.id === 'pulsar_susanto_x' && device.capabilities.battery_read && device.capabilities.firmware_read && <TelemetryControls device={device} stale={stale} onUpdated={onTelemetryRead} />}
       </section>
       <section className="panel capabilities" aria-labelledby="capabilities-title">

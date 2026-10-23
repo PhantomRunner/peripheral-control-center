@@ -11,12 +11,13 @@ export function TelemetryControls({ device, stale, onUpdated }: { device: Device
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const available = device.status === 'receiver_detected' && device.connection.receiver_usb_present && !stale;
 
-  const read = async () => {
+  const read = async (settings = false) => {
     if (!available || !toolsClosed || busy) return;
     setBusy(true); setMessage(null);
     try {
-      await client.read();
-      if (mounted.current) setMessage({ error: false, text: 'Battery and firmware read successfully.' });
+      if (settings) await client.readSettings();
+      else await client.read();
+      if (mounted.current) setMessage({ error: false, text: settings ? 'DPI and stored polling read successfully.' : 'Battery and firmware read successfully.' });
     } catch (cause) {
       if (mounted.current) setMessage({ error: true, text: cause instanceof Error ? cause.message : 'Hardware read was not confirmed.' });
     } finally {
@@ -30,6 +31,7 @@ export function TelemetryControls({ device, stale, onUpdated }: { device: Device
   return <div className="telemetry-controls">
     <label className="tool-confirmation"><input type="checkbox" checked={toolsClosed} disabled={busy || !available} onChange={(event) => setToolsClosed(event.target.checked)} />Other device-control tools are closed</label>
     <button className="secondary" type="button" disabled={busy || !available || !toolsClosed} onClick={() => { void read(); }}>{busy ? 'Reading hardware…' : 'Read battery and firmware'}</button>
+    {device.capabilities.dpi_read && device.capabilities.polling_rate_read && <button className="secondary" type="button" disabled={busy || !available || !toolsClosed} onClick={() => { void read(true); }}>Read DPI and polling</button>}
     {!available && <p className="device-note">Connect the receiver and restore the backend connection before reading.</p>}
     {message && <p role={message.error ? 'alert' : 'status'} className={message.error ? 'error' : 'profile-notice'}>{message.text}</p>}
   </div>;

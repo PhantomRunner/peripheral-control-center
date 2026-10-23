@@ -4,6 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from .config_telemetry import ConfigSnapshot
 from .telemetry import ReadTelemetryRequest, TelemetryBusy, TelemetryConsentRequired, TelemetryService, TelemetrySnapshot, TelemetryUnavailable
 
 router = APIRouter(prefix="/api/devices")
@@ -24,3 +25,15 @@ def read_pulsar_telemetry(body: ReadTelemetryRequest, service: Annotated[Telemet
         raise HTTPException(423, "A hardware read is already running.") from None
     except TelemetryUnavailable:
         raise HTTPException(503, "Battery/firmware read was not confirmed. Check device access and close other control tools.") from None
+
+
+@router.post("/pulsar_susanto_x/settings/read", response_model=ConfigSnapshot)
+def read_pulsar_config(body: ReadTelemetryRequest, service: Annotated[TelemetryService, Depends(get_telemetry_service)]) -> ConfigSnapshot:
+    try:
+        return service.read_config(vendor_tools_closed=body.vendor_tools_closed)
+    except TelemetryConsentRequired:
+        raise HTTPException(409, "Close other device-control tools before reading.") from None
+    except TelemetryBusy:
+        raise HTTPException(423, "A hardware read is already running.") from None
+    except TelemetryUnavailable:
+        raise HTTPException(503, "DPI/polling read was not confirmed. Check device access and close other control tools.") from None

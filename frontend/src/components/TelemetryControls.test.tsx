@@ -52,4 +52,37 @@ describe('manual battery and firmware', () => {
     expect(screen.getByText(/Last hardware read:/)).toBeVisible();
     expect(screen.getAllByText('—')).toHaveLength(2);
   });
+
+  it('reads DPI/polling separately and disables both hardware actions while busy', async () => {
+    let finish!: (response: Response) => void;
+    const pending = new Promise<Response>((resolve) => { finish = resolve; });
+    const fetchMock = vi.fn().mockResolvedValueOnce(Response.json({ token: 'a'.repeat(43), expires_in_seconds: 1800 }))
+      .mockReturnValueOnce(pending);
+    vi.stubGlobal('fetch', fetchMock);
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const device = { ...supported, capabilities: { ...supported.capabilities, dpi_read: true, polling_rate_read: true } };
+    render(<TelemetryControls device={device} stale={false} onUpdated={refresh} />);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Read DPI and polling' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Read DPI and polling' }));
+    expect(await screen.findByRole('button', { name: 'Reading hardware…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Read DPI and polling' })).toBeDisabled();
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/devices/pulsar_susanto_x/settings/read');
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ vendor_tools_closed: true });
+    finish(Response.json({ device_id: mouse.id, dpi: 1200, polling_rate_hz: 1000, active_profile_index: 0, active_stage_index: 2, recorded_at: '2026-10-23T18:30:12Z' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('DPI and stored polling read successfully');
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(screen.getByRole('checkbox')).not.toBeChecked();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('labels the independent DPI/polling observation time and stored-rate meaning', () => {
+    render(<DeviceDetails device={{ ...supported, dpi: 1200, polling_rate_hz: 1000, settings_updated_at: '2026-10-23T18:30:12Z' }} stale={false} />);
+    expect(screen.getByText('1200')).toBeVisible();
+    expect(screen.getByText('1000 Hz')).toBeVisible();
+    expect(screen.getByText(/Last DPI\/polling read:/)).toBeVisible();
+    expect(screen.getByText(/Polling is the stored device setting/)).toBeVisible();
+    expect(screen.queryByText(/Last hardware read:/)).not.toBeInTheDocument();
+  });
 });

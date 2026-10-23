@@ -43,18 +43,19 @@ def test_device_api_shape(
             "id", "name", "kind", "status", "connected_usb_ids", "battery_percent",
             "dpi", "polling_rate_hz", "driver_state", "note",
             "firmware_version", "capabilities", "connection",
-            "telemetry_updated_at",
+            "telemetry_updated_at", "settings_updated_at",
         }
         assert item["battery_percent"] is None
         assert item["dpi"] is None
         assert item["polling_rate_hz"] is None
         assert item["firmware_version"] is None
         assert item["telemetry_updated_at"] is None
+        assert item["settings_updated_at"] is None
         assert item["capabilities"] == {
             "usb_discovery": True,
             "battery_read": item["kind"] == "mouse",
-            "dpi_read": False,
-            "polling_rate_read": False,
+            "dpi_read": item["kind"] == "mouse",
+            "polling_rate_read": item["kind"] == "mouse",
             "firmware_read": item["kind"] == "mouse",
             "settings_write": False,
         }
