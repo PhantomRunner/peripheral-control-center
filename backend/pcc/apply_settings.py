@@ -107,15 +107,19 @@ class SettingsService:
                     actual_dpi = actual_polling = None
                     if desired.dpi is not None:
                         session.write_dpi(desired.dpi)
+                    if desired.polling_rate_hz is not None:
+                        session.write_polling_rate(desired.polling_rate_hz)
+                    # Verify the final combined state: a later write may affect an earlier setting.
+                    if desired.dpi is not None:
                         actual_dpi = session.read_dpi()
                         if type(actual_dpi) is not int or actual_dpi != desired.dpi:
                             raise SettingsVerificationError("DPI write could not be verified. Device state may have changed.")
                     if desired.polling_rate_hz is not None:
-                        session.write_polling_rate(desired.polling_rate_hz)
                         actual_polling = session.read_polling_rate()
                         if type(actual_polling) is not int or actual_polling != desired.polling_rate_hz:
                             raise SettingsVerificationError("Polling write could not be verified. Device state may have changed.")
-                    if session.read_active_profile() != profile:
+                    final_profile = session.read_active_profile()
+                    if type(final_profile) is not int or final_profile != profile:
                         raise SettingsVerificationError("Active profile changed during Apply; readback is not reliable.")
                     return MouseSettings(kind="mouse", dpi=actual_dpi, polling_rate_hz=actual_polling)
             except (OSError, RuntimeError):

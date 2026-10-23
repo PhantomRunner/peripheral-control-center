@@ -24,6 +24,7 @@ class FakeDpiAdapter:
         self.profile = 0
         self.profile_changed = False
         self.profile_reads = 0
+        self.polling_resets_dpi = False
 
     def validate_dpi(self, value):
         if not 10 <= value <= 32000 or value % 10:
@@ -40,6 +41,8 @@ class FakeDpiAdapter:
     def write_polling_rate(self, value):
         self.calls.append(("write_polling", value))
         self.polling = value
+        if self.polling_resets_dpi:
+            self.dpi = 400
 
     def read_polling_rate(self):
         self.calls.append("read_polling")
@@ -178,7 +181,7 @@ def test_compound_apply_verifies_each_requested_value(apply_client):
     client, headers, adapter, _ownership = apply_client
     response = client.post(URL, headers=headers, json={"settings": {"kind": "mouse", "dpi": 800, "polling_rate_hz": 4000}})
     assert response.status_code == 200
-    assert adapter.calls == ["open", ("write_dpi", 800), "read_dpi", ("write_polling", 4000), "read_polling", "close"]
+    assert adapter.calls == ["open", ("write_dpi", 800), ("write_polling", 4000), "read_dpi", "read_polling", "close"]
     assert adapter.profile_reads == 2
 
 
@@ -202,3 +205,12 @@ def test_profile_change_invalidates_confirmation_without_restoring_profile(apply
     adapter.profile_changed = True
     assert client.post(URL, headers=headers, json=DPI).status_code == 502
     assert adapter.calls == ["open", ("write_dpi", 800), "read_dpi", "close"]
+
+
+def test_later_polling_side_effect_cannot_hide_an_incorrect_final_dpi(apply_client):
+    client, headers, adapter, _ownership = apply_client
+    adapter.polling_resets_dpi = True
+    response = client.post(URL, headers=headers, json={"settings": {"kind": "mouse", "dpi": 800, "polling_rate_hz": 4000}})
+    assert response.status_code == 502
+    assert adapter.dpi == 400
+    assert adapter.calls == ["open", ("write_dpi", 800), ("write_polling", 4000), "read_dpi", "close"]
