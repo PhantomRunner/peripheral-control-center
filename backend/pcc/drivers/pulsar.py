@@ -2,7 +2,7 @@
 
 from typing import AbstractSet
 
-from pcc.models import DeviceSummary
+from pcc.models import DeviceConnection, DeviceSummary
 
 
 class PulsarAdapter:
@@ -16,6 +16,7 @@ class PulsarAdapter:
             kind="mouse",
             status="receiver_detected" if receiver else "offline",
             connected_usb_ids=[self.RECEIVER_USB_ID] if receiver else [],
+            connection=DeviceConnection(receiver_usb_present=receiver),
             note=(
                 "8K receiver detected. The mouse link and settings are not read yet."
                 if receiver else "8K receiver not detected."

@@ -42,10 +42,28 @@ def test_device_api_shape(
         assert set(item) == {
             "id", "name", "kind", "status", "connected_usb_ids", "battery_percent",
             "dpi", "polling_rate_hz", "driver_state", "note",
+            "firmware_version", "capabilities", "connection",
         }
         assert item["battery_percent"] is None
         assert item["dpi"] is None
         assert item["polling_rate_hz"] is None
+        assert item["firmware_version"] is None
+        assert item["capabilities"] == {
+            "usb_discovery": True,
+            "battery_read": False,
+            "dpi_read": False,
+            "polling_rate_read": False,
+            "firmware_read": False,
+            "settings_write": False,
+        }
+        assert item["connection"] == {
+            "source": "usb_enumeration",
+            "wired_usb_present": "0c45:8009" in item["connected_usb_ids"],
+            "receiver_usb_present": any(
+                usb_id in item["connected_usb_ids"] for usb_id in ("3710:5406", "0c45:fdfd")
+            ),
+            "wireless_link_verified": None,
+        }
 
 
 def test_untrusted_host_rejected() -> None:

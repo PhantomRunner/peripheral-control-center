@@ -2,7 +2,7 @@
 
 from typing import AbstractSet
 
-from pcc.models import DeviceSummary
+from pcc.models import DeviceConnection, DeviceSummary
 
 
 class AjazzAdapter:
@@ -24,6 +24,9 @@ class AjazzAdapter:
                 usb_id for usb_id in (self.WIRED_USB_ID, self.RECEIVER_USB_ID)
                 if usb_id in present_usb_ids
             ],
+            connection=DeviceConnection(
+                wired_usb_present=wired, receiver_usb_present=receiver,
+            ),
             note=(
                 "Wired USB device detected. HID settings are not read yet."
                 if wired else

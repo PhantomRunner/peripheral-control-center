@@ -65,7 +65,22 @@ def test_default_registry_preserves_usb_presence_and_unknown_telemetry(
         assert device.battery_percent is None
         assert device.dpi is None
         assert device.polling_rate_hz is None
+        assert device.firmware_version is None
+        assert device.connection.source == "usb_enumeration"
+        assert device.connection.wireless_link_verified is None
+        assert device.capabilities.model_dump() == {
+            "usb_discovery": True,
+            "battery_read": False,
+            "dpi_read": False,
+            "polling_rate_read": False,
+            "firmware_read": False,
+            "settings_write": False,
+        }
         assert device.driver_state == "not_implemented"
+    assert mouse.connection.wired_usb_present is False
+    assert mouse.connection.receiver_usb_present == ("3710:5406" in present)
+    assert keyboard.connection.wired_usb_present == ("0c45:8009" in present)
+    assert keyboard.connection.receiver_usb_present == ("0c45:fdfd" in present)
     if mouse.status == "receiver_detected":
         assert mouse.note == "8K receiver detected. The mouse link and settings are not read yet."
     if keyboard.status == "receiver_detected":

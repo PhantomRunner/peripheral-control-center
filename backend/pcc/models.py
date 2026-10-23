@@ -3,6 +3,26 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
+class DeviceCapabilities(BaseModel):
+    """Operations implemented by this adapter, not promises about the hardware."""
+
+    usb_discovery: bool = True
+    battery_read: bool = False
+    dpi_read: bool = False
+    polling_rate_read: bool = False
+    firmware_read: bool = False
+    settings_write: bool = False
+
+
+class DeviceConnection(BaseModel):
+    """USB presence is independent of a validated wireless link."""
+
+    source: Literal["usb_enumeration"] = "usb_enumeration"
+    wired_usb_present: bool = False
+    receiver_usb_present: bool = False
+    wireless_link_verified: bool | None = None
+
+
 class DeviceSummary(BaseModel):
     id: str
     name: str
@@ -12,6 +32,9 @@ class DeviceSummary(BaseModel):
     battery_percent: int | None = None
     dpi: int | None = None
     polling_rate_hz: int | None = None
+    firmware_version: str | None = None
+    capabilities: DeviceCapabilities = Field(default_factory=DeviceCapabilities)
+    connection: DeviceConnection = Field(default_factory=DeviceConnection)
     driver_state: Literal["not_implemented"] = "not_implemented"
     note: str
 
