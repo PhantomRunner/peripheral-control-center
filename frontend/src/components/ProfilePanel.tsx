@@ -1,13 +1,14 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ProfileClient, type ProfileDraft, type SettingsIntent, type SoftwareProfile } from '../profilesApi';
 import type { Device } from '../types';
+import { ApplyControls } from './ApplyControls';
 
 function initialSettings(kind: Device['kind']): SettingsIntent {
   return kind === 'mouse' ? { kind: 'mouse', dpi: 800, polling_rate_hz: 1000 }
     : { kind: 'keyboard', rgb: { mode: 'static', color: '#7766ff', brightness_percent: 50 } };
 }
 
-export function ProfilePanel({ device }: { device: Device }) {
+export function ProfilePanel({ device, stale = false }: { device: Device; stale?: boolean }) {
   const [open, setOpen] = useState(false);
   const [profiles, setProfiles] = useState<SoftwareProfile[]>([]);
   const [selected, setSelected] = useState<SoftwareProfile | null>(null);
@@ -96,7 +97,8 @@ export function ProfilePanel({ device }: { device: Device }) {
           </fieldset>
           <div className="profile-actions"><button className="refresh" type="submit" disabled={busy || !name.trim() || empty}>{busy ? 'Working…' : selected ? 'Save changes locally' : 'Save profile locally'}</button>{selected && <><button className="secondary" type="button" disabled={busy || !name.trim() || empty} onClick={() => { void save(true); }}>Save as new profile</button><button className="secondary danger" type="button" disabled={busy} onClick={() => { void remove(); }}>Delete local profile</button></>}</div>
         </form>
-        <p className="device-note">Hardware Apply is unavailable until the adapter is validated for this device. Saved values are desired settings, not hardware readings.</p>
+        <ApplyControls device={device} desired={settings} stale={stale} busy={busy || empty} onBusy={setBusy} />
+        <p className="device-note">Saved values are desired settings, not hardware readings.</p>
       </div>}
     </section>
   );

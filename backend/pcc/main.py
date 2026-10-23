@@ -7,6 +7,7 @@ from .models import DeviceList
 from .drivers.registry import discover_devices
 from .security import LocalSession, LocalSessionMiddleware, SessionStore, local_origin
 from .profile_api import router as profile_router
+from .settings_api import router as settings_router
 
 app = FastAPI(title="Peripheral Control Center API", version="0.1.0")
 sessions = SessionStore()
@@ -16,6 +17,7 @@ app.add_middleware(
     allowed_hosts=["localhost", "127.0.0.1"],
 )
 app.include_router(profile_router)
+app.include_router(settings_router)
 
 
 @app.get("/api/session", response_model=LocalSession)

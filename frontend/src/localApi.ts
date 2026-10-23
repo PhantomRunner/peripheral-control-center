@@ -2,6 +2,10 @@ function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+export class LocalApiError extends Error {
+  constructor(readonly status: number, message: string) { super(message); }
+}
+
 export class LocalApiClient {
   private session: { token: string; expires: number } | null = null;
 
@@ -59,10 +63,10 @@ export class LocalApiClient {
         continue;
       }
       if (!response.ok) {
-        if (response.status === 409) throw new Error('Data changed or is busy. Reload before retrying.');
-        if (response.status === 422) throw new Error('Check the profile name and desired settings.');
-        if (response.status === 503) throw new Error('Local storage is unavailable. Existing data has been kept.');
-        throw new Error(`Local request failed (HTTP ${response.status}).`);
+        if (response.status === 409) throw new LocalApiError(409, 'Data changed or is busy. Reload before retrying.');
+        if (response.status === 422) throw new LocalApiError(422, 'Check the profile name and desired settings.');
+        if (response.status === 503) throw new LocalApiError(503, 'Local storage is unavailable. Existing data has been kept.');
+        throw new LocalApiError(response.status, `Local request failed (HTTP ${response.status}).`);
       }
       return response.value;
     }
