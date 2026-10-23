@@ -18,10 +18,32 @@ class FakeDpiAdapter:
         self.dpi = 400
         self.bad_readback = False
         self.fail_write = False
+        self.polling = 1000
+        self.allowed_rates = {125, 250, 500, 1000, 2000, 4000, 8000}
+        self.bad_poll_readback = False
+        self.profile = 0
+        self.profile_changed = False
+        self.profile_reads = 0
 
     def validate_dpi(self, value):
         if not 10 <= value <= 32000 or value % 10:
             raise ValueError("Unsupported test step")
+
+    def validate_polling_rate(self, value):
+        if value not in self.allowed_rates:
+            raise ValueError("Unsupported test rate")
+
+    def read_active_profile(self):
+        self.profile_reads += 1
+        return self.profile + (1 if self.profile_changed and self.profile_reads > 1 else 0) if self.profile is not None else None
+
+    def write_polling_rate(self, value):
+        self.calls.append(("write_polling", value))
+        self.polling = value
+
+    def read_polling_rate(self):
+        self.calls.append("read_polling")
+        return None if self.bad_poll_readback else self.polling
 
     @contextmanager
     def session(self):
@@ -132,3 +154,51 @@ def test_validation_evidence_cannot_be_supplied_by_http(apply_client):
     assert client.post(URL, headers=headers, json=DPI).status_code == 409
     assert client.post(URL, headers=headers, json=DPI | {"validated": True}).status_code == 422
     assert adapter.calls == []
+
+
+@pytest.mark.parametrize("rate", [125, 250, 500, 1000, 2000, 4000, 8000])
+def test_polling_only_apply_verifies_readback_and_leaves_dpi_unchanged(apply_client, rate):
+    client, headers, adapter, _ownership = apply_client
+    response = client.post(URL, headers=headers, json={"settings": {"kind": "mouse", "polling_rate_hz": rate}})
+    assert response.status_code == 200
+    assert response.json()["settings"] == {"kind": "mouse", "dpi": None, "polling_rate_hz": rate}
+    assert adapter.calls == ["open", ("write_polling", rate), "read_polling", "close"]
+    assert adapter.dpi == 400
+
+
+def test_compound_settings_are_all_validated_before_any_write(apply_client):
+    client, headers, adapter, _ownership = apply_client
+    adapter.allowed_rates = {1000}
+    response = client.post(URL, headers=headers, json={"settings": {"kind": "mouse", "dpi": 800, "polling_rate_hz": 8000}})
+    assert response.status_code == 422
+    assert adapter.calls == []
+
+
+def test_compound_apply_verifies_each_requested_value(apply_client):
+    client, headers, adapter, _ownership = apply_client
+    response = client.post(URL, headers=headers, json={"settings": {"kind": "mouse", "dpi": 800, "polling_rate_hz": 4000}})
+    assert response.status_code == 200
+    assert adapter.calls == ["open", ("write_dpi", 800), "read_dpi", ("write_polling", 4000), "read_polling", "close"]
+    assert adapter.profile_reads == 2
+
+
+def test_polling_without_readback_is_not_reported_as_applied(apply_client):
+    client, headers, adapter, _ownership = apply_client
+    adapter.bad_poll_readback = True
+    response = client.post(URL, headers=headers, json={"settings": {"kind": "mouse", "polling_rate_hz": 8000}})
+    assert response.status_code == 502
+    assert adapter.calls == ["open", ("write_polling", 8000), "read_polling", "close"]
+
+
+def test_unknown_active_profile_prevents_writes(apply_client):
+    client, headers, adapter, _ownership = apply_client
+    adapter.profile = None
+    assert client.post(URL, headers=headers, json=DPI).status_code == 502
+    assert adapter.calls == ["open", "close"]
+
+
+def test_profile_change_invalidates_confirmation_without_restoring_profile(apply_client):
+    client, headers, adapter, _ownership = apply_client
+    adapter.profile_changed = True
+    assert client.post(URL, headers=headers, json=DPI).status_code == 502
+    assert adapter.calls == ["open", ("write_dpi", 800), "read_dpi", "close"]
