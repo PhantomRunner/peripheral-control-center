@@ -103,7 +103,8 @@ h1 span { color: #9991fb; }
 .apply-controls { border-top: 1px solid #454256; padding-top: 20px; margin-top: 26px; }
 .telemetry-controls { border-top: 1px solid #303746; margin-top: 18px; padding-top: 18px; }
 .tool-confirmation { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 14px; color: #c3ccdf; font-size: 12px; line-height: 1.6; }
-.tool-confirmation input { margin: 4px 0 0; accent-color: #9a94fc; }
+.profile-panel label.tool-confirmation { flex-direction: row; align-items: flex-start; }
+.tool-confirmation input[type=checkbox] { flex: 0 0 auto; width: 16px; min-height: 16px; height: 16px; padding: 0; margin: 3px 0 0; accent-color: #9a94fc; }
 @keyframes pulse { to { opacity: .25; } }
 @media (prefers-reduced-motion: reduce) { .loading-dot { animation: none; } }
 @media (max-width: 1100px) {

@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import App from './App';
-import { deviceResponse, mouse, offlineMouse, pendingRequest } from './test/fixtures';
+import { deviceResponse, keyboard, mouse, offlineMouse, pendingRequest } from './test/fixtures';
 
 describe('discovery views', () => {
   it('shows loading without inventing device counts or readings', () => {
@@ -34,6 +34,28 @@ describe('discovery views', () => {
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'AJAZZ AK820 Pro.', level: 1 })).toBeVisible();
     expect(screen.getByRole('region', { name: 'Connection' })).toHaveTextContent('Wired USB detected');
+  });
+
+  it('replaces device panels and drafts when repeatedly switching sidebar devices', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (input) => input === '/api/profiles' ? Response.json({ profiles: [] }) : deviceResponse()));
+    render(<App />);
+    await screen.findByRole('article', { name: mouse.name });
+    const navigation = screen.getByRole('navigation', { name: 'Main navigation' });
+    for (const device of [mouse, keyboard, mouse, keyboard, mouse, keyboard]) {
+      fireEvent.click(within(navigation).getByRole('link', { name: new RegExp(device.name) }));
+      await screen.findByRole('heading', { name: `${device.name}.`, level: 1 });
+      for (const region of ['Connection', 'Telemetry', 'Adapter support', 'Software profiles']) {
+        expect(screen.getAllByRole('region', { name: region })).toHaveLength(1);
+      }
+      expect(screen.getByRole('region', { name: 'Software profiles' })).not.toHaveTextContent('Desired settings · local draft');
+      fireEvent.click(screen.getByRole('button', { name: 'Manage profiles' }));
+      await screen.findByRole('group', { name: 'Desired settings · local draft' });
+    }
+    fireEvent.click(within(navigation).getByRole('link', { name: /Dashboard/ }));
+    await screen.findByRole('heading', { name: 'Your peripherals.', level: 1 });
+    expect(screen.queryByRole('region', { name: 'Connection' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Software profiles' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('article')).toHaveLength(2);
   });
 
   it.each(['#/devices/missing', '#/devices/%E0%A4%A', '#/unrecognised'])('handles an unknown URL: %s', async (hash) => {
