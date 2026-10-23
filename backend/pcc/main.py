@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from .models import DeviceList
-from .scanner import discover_devices
+from .drivers.registry import discover_devices
 
 app = FastAPI(title="Peripheral Control Center API", version="0.1.0")
 app.add_middleware(

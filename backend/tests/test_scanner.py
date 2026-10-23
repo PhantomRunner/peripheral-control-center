@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from pcc.scanner import discover_devices, scan_usb_ids
+from pcc.drivers.registry import discover_devices
+from pcc.scanner import scan_usb_ids
 
 
 def add_usb(root: Path, name: str, vid: str, pid: str) -> None:

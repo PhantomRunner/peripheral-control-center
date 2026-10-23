@@ -1,0 +1,23 @@
+"""Pulsar Susanto-X USB presence only; no verified wireless link or HID reads."""
+
+from typing import AbstractSet
+
+from pcc.models import DeviceSummary
+
+
+class PulsarAdapter:
+    RECEIVER_USB_ID = "3710:5406"
+
+    def get_summary(self, present_usb_ids: AbstractSet[str]) -> DeviceSummary:
+        receiver = self.RECEIVER_USB_ID in present_usb_ids
+        return DeviceSummary(
+            id="pulsar_susanto_x",
+            name="Pulsar Susanto-X",
+            kind="mouse",
+            status="receiver_detected" if receiver else "offline",
+            connected_usb_ids=[self.RECEIVER_USB_ID] if receiver else [],
+            note=(
+                "8K receiver detected. The mouse link and settings are not read yet."
+                if receiver else "8K receiver not detected."
+            ),
+        )

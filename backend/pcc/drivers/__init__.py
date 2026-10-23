@@ -1,1 +1,1 @@
-"""Device-specific drivers go here in milestone 2."""
+"""Read-only device adapters; no hardware commands or live telemetry yet."""
