@@ -1,8 +1,9 @@
-"""Susanto-X discovery with explicit read support; no writes."""
+"""Susanto-X discovery and separately validated explicit operation metadata."""
 
 from typing import AbstractSet
 
-from pcc.models import DeviceCapabilities, DeviceConnection, DeviceSummary
+from pcc.models import DeviceCapabilities, DeviceConnection, DeviceSummary, MouseWriteOptions
+from .protocols.pulsar_settings import DPI_RECORDS, POLLING_RECORDS
 
 
 class PulsarAdapter:
@@ -17,8 +18,9 @@ class PulsarAdapter:
             status="receiver_detected" if receiver else "offline",
             connected_usb_ids=[self.RECEIVER_USB_ID] if receiver else [],
             connection=DeviceConnection(receiver_usb_present=receiver),
-            capabilities=DeviceCapabilities(battery_read=True, firmware_read=True, dpi_read=True, polling_rate_read=True),
-            driver_state="read_only",
+            capabilities=DeviceCapabilities(battery_read=True, firmware_read=True, dpi_read=True, polling_rate_read=True, settings_write=True),
+            driver_state="read_write",
+            write_options=MouseWriteOptions(dpi=list(DPI_RECORDS), polling_rate_hz=list(POLLING_RECORDS)),
             note=(
                 "8K receiver detected. Readings update manually; wireless link is not verified."
                 if receiver else "8K receiver not detected."

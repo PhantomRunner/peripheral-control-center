@@ -1,4 +1,4 @@
-"""Local-only discovery and software profiles. No hardware writes enabled."""
+"""Local discovery, profiles and protected explicit validated-device operations."""
 
 from typing import Annotated
 

@@ -6,10 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from .apply_settings import ApplyRequest, InvalidSettingsError, SettingsOperationError, SettingsService, SettingsUnavailableError, SettingsVerificationError
 from .ownership import DeviceBusyError, OwnershipUnavailableError
+from .drivers.pulsar_settings import PulsarSettingsAdapter
 from .settings import DeviceId, SettingsIntent, StrictModel
+from .telemetry import TelemetryService
+from .telemetry_api import get_telemetry_service
 
 router = APIRouter(prefix="/api/devices")
-_service = SettingsService()  # Intentionally no live writers registered.
+_service = SettingsService({"pulsar_susanto_x": PulsarSettingsAdapter()})
 
 
 def get_settings_service() -> SettingsService:
@@ -23,12 +26,12 @@ class ApplyResult(StrictModel):
 
 
 @router.post("/{device_id}/settings/apply", response_model=ApplyResult)
-def apply_settings(device_id: DeviceId, body: ApplyRequest, service: Annotated[SettingsService, Depends(get_settings_service)]) -> ApplyResult:
+def apply_settings(device_id: DeviceId, body: ApplyRequest, service: Annotated[SettingsService, Depends(get_settings_service)], telemetry: Annotated[TelemetryService, Depends(get_telemetry_service)]) -> ApplyResult:
     try:
-        actual = service.apply(device_id, body.settings)
+        actual = service.apply(device_id, body.settings, vendor_tools_closed=body.vendor_tools_closed)
         return ApplyResult(device_id=device_id, settings=actual)
     except SettingsUnavailableError:
-        raise HTTPException(409, "No validated settings operation is enabled for this device.") from None
+        raise HTTPException(409, "Settings operation is unavailable. Check support and confirm other control tools are closed.") from None
     except InvalidSettingsError:
         raise HTTPException(422, "Settings are not supported by this adapter.") from None
     except DeviceBusyError:
@@ -39,3 +42,6 @@ def apply_settings(device_id: DeviceId, body: ApplyRequest, service: Annotated[S
         raise HTTPException(502, "Readback did not verify the write. Device state may have changed.") from None
     except SettingsOperationError:
         raise HTTPException(502, "Device operation failed. State may have changed; check it before retrying.") from None
+    finally:
+        if device_id == "pulsar_susanto_x":
+            telemetry.invalidate_config()

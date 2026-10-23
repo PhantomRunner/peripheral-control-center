@@ -30,7 +30,15 @@ function isDevice(value: unknown): value is Device {
       && /^\d{4}-\d{2}-\d{2}T/.test(value.telemetry_updated_at) && Number.isFinite(Date.parse(value.telemetry_updated_at))))
     && (value.settings_updated_at === null || (typeof value.settings_updated_at === 'string'
       && /^\d{4}-\d{2}-\d{2}T/.test(value.settings_updated_at) && Number.isFinite(Date.parse(value.settings_updated_at))))
-    && (value.driver_state === 'not_implemented' || value.driver_state === 'read_only')
+    && (value.driver_state === 'not_implemented' || value.driver_state === 'read_only' || value.driver_state === 'read_write')
+    && (value.write_options === null || (isRecord(value.write_options)
+      && Array.isArray(value.write_options.dpi) && value.write_options.dpi.every((n) => typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= 32000)
+      && Array.isArray(value.write_options.polling_rate_hz) && value.write_options.polling_rate_hz.every((n) => [125, 250, 500, 1000, 2000, 4000, 8000].includes(n))
+      && typeof value.write_options.profile_index === 'number' && Number.isInteger(value.write_options.profile_index)
+      && value.write_options.profile_index >= 0 && value.write_options.profile_index <= 3
+      && typeof value.write_options.active_stage_index === 'number' && Number.isInteger(value.write_options.active_stage_index)
+      && value.write_options.active_stage_index >= 0 && value.write_options.active_stage_index <= 5
+      && typeof value.write_options.firmware_version === 'string' && /^[0-9]+\.[0-9a-f]{2}$/.test(value.write_options.firmware_version)))
     && typeof value.note === 'string'
     && capabilityKeys.every((key) => typeof capabilities[key] === 'boolean')
     && connection.source === 'usb_enumeration'

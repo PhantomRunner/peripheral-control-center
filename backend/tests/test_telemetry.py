@@ -43,7 +43,7 @@ def test_enumeration_never_runs_hid_and_initial_values_are_unknown(telemetry_cli
         assert mouse["telemetry_updated_at"] is None
         assert mouse["capabilities"]["battery_read"] is True
         assert mouse["capabilities"]["firmware_read"] is True
-        assert mouse["capabilities"]["settings_write"] is False
+        assert mouse["capabilities"]["settings_write"] is True
     reader.assert_not_called()
 
 
@@ -60,7 +60,7 @@ def test_explicit_read_is_timestamped_and_never_claims_dpi_polling_or_wireless_l
     assert mouse["telemetry_updated_at"] == result.json()["recorded_at"]
     assert mouse["dpi"] is None and mouse["polling_rate_hz"] is None
     assert mouse["connection"]["wireless_link_verified"] is None
-    assert mouse["capabilities"]["settings_write"] is False
+    assert mouse["capabilities"]["settings_write"] is True
 
 
 @pytest.mark.parametrize("body", [{}, {"vendor_tools_closed": "true"}, {"vendor_tools_closed": 1}, {"vendor_tools_closed": True, "command": 7}])

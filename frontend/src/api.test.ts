@@ -16,6 +16,16 @@ describe('device API', () => {
     expect(await fetchDevices(new AbortController().signal)).toEqual([]);
   });
 
+  it('accepts verified write limits while keeping initial readings unknown', async () => {
+    const device = { ...mouse, driver_state: 'read_write' as const, capabilities: { ...mouse.capabilities, settings_write: true },
+      write_options: { dpi: [800, 1200], polling_rate_hz: [500, 1000], profile_index: 0, active_stage_index: 2, firmware_version: '3.03' } };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(deviceResponse([device])));
+    const [actual] = await fetchDevices(new AbortController().signal);
+    expect(actual.write_options).toEqual(device.write_options);
+    expect(actual.dpi).toBeNull();
+    expect(actual.firmware_version).toBeNull();
+  });
+
   it('reports HTTP failures without exposing the server response body', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('private diagnostics', { status: 503 })));
     await expect(fetchDevices(new AbortController().signal)).rejects.toThrow('Backend returned HTTP 503.');
@@ -43,6 +53,7 @@ describe('device API', () => {
     { devices: [{ ...mouse, firmware_version: undefined }] },
     { devices: [{ ...mouse, capabilities: { usb_discovery: true } }] },
     { devices: [{ ...mouse, connection: { ...mouse.connection, wireless_link_verified: 'unknown' } }] },
+    { devices: [{ ...mouse, write_options: { dpi: ['800'], polling_rate_hz: [1000], profile_index: 0, active_stage_index: 2, firmware_version: '3.03' } }] },
   ])('rejects a malformed device response (%#)', async (payload) => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(payload)));
     await expect(fetchDevices(new AbortController().signal)).rejects.toThrow('Unexpected API response.');

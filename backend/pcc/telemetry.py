@@ -82,6 +82,7 @@ class TelemetryService:
         self._config_reader = config_reader
         self._snapshot: TelemetrySnapshot | None = None
         self._config_snapshot: ConfigSnapshot | None = None
+        self._config_generation = 0
         self._state_lock = threading.Lock()
         self._operation_lock = threading.Lock()
 
@@ -94,6 +95,7 @@ class TelemetryService:
                 if device.status == "offline":
                     self._snapshot = None
                     self._config_snapshot = None
+                    self._config_generation += 1
                 else:
                     if self._snapshot is not None:
                         device.battery_percent = self._snapshot.battery_percent
@@ -134,9 +136,12 @@ class TelemetryService:
             devices = registry.discover_devices()
             if not any(device.id == "pulsar_susanto_x" and device.status == "receiver_detected" for device in devices):
                 raise ConfigReadUnavailable
+            with self._state_lock:
+                generation = self._config_generation
             snapshot = self._config_reader()
             with self._state_lock:
-                self._config_snapshot = snapshot
+                if generation == self._config_generation:
+                    self._config_snapshot = snapshot
             return snapshot
         except (ConfigReadUnavailable, OSError):
             with self._state_lock:
@@ -144,3 +149,8 @@ class TelemetryService:
             raise TelemetryUnavailable("DPI/polling read was not confirmed.") from None
         finally:
             self._operation_lock.release()
+
+    def invalidate_config(self) -> None:
+        with self._state_lock:
+            self._config_generation += 1
+            self._config_snapshot = None

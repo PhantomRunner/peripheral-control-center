@@ -8,7 +8,7 @@ function initialSettings(kind: Device['kind']): SettingsIntent {
     : { kind: 'keyboard', rgb: { mode: 'static', color: '#7766ff', brightness_percent: 50 } };
 }
 
-export function ProfilePanel({ device, stale = false }: { device: Device; stale?: boolean }) {
+export function ProfilePanel({ device, stale = false, onUpdated }: { device: Device; stale?: boolean; onUpdated?: () => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [profiles, setProfiles] = useState<SoftwareProfile[]>([]);
   const [selected, setSelected] = useState<SoftwareProfile | null>(null);
@@ -97,7 +97,7 @@ export function ProfilePanel({ device, stale = false }: { device: Device; stale?
           </fieldset>
           <div className="profile-actions"><button className="refresh" type="submit" disabled={busy || !name.trim() || empty}>{busy ? 'Working…' : selected ? 'Save changes locally' : 'Save profile locally'}</button>{selected && <><button className="secondary" type="button" disabled={busy || !name.trim() || empty} onClick={() => { void save(true); }}>Save as new profile</button><button className="secondary danger" type="button" disabled={busy} onClick={() => { void remove(); }}>Delete local profile</button></>}</div>
         </form>
-        <ApplyControls device={device} desired={settings} stale={stale} busy={busy || empty} onBusy={setBusy} />
+        <ApplyControls device={device} desired={settings} stale={stale} busy={busy || empty} onBusy={setBusy} onUpdated={onUpdated} />
         <p className="device-note">Saved values are desired settings, not hardware readings.</p>
       </div>}
     </section>

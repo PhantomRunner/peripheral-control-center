@@ -4,13 +4,13 @@ import { isSettings, type SettingsIntent } from './profilesApi';
 export class SettingsClient {
   private api = new LocalApiClient();
 
-  async apply(deviceId: string, desired: SettingsIntent): Promise<SettingsIntent> {
+  async apply(deviceId: string, desired: SettingsIntent, vendorToolsClosed = false): Promise<SettingsIntent> {
     let value: unknown;
     try {
-      value = await this.api.request(`/api/devices/${encodeURIComponent(deviceId)}/settings/apply`, 'POST', { settings: desired });
+      value = await this.api.request(`/api/devices/${encodeURIComponent(deviceId)}/settings/apply`, 'POST', { settings: desired, vendor_tools_closed: vendorToolsClosed });
     } catch (cause) {
       if (cause instanceof LocalApiError) {
-        if (cause.status === 409) throw new Error('No validated hardware writer is enabled for this device.');
+        if (cause.status === 409) throw new Error('Apply is unavailable. Check device support and confirm other control tools are closed.');
         if (cause.status === 423) throw new Error('The device is busy. Close other device tools and retry.');
         if (cause.status === 422) throw new Error('These settings are not supported by the device adapter.');
         if (cause.status === 502) throw new Error('The write was not verified. Device state may have changed; check it before retrying.');

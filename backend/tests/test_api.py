@@ -37,13 +37,13 @@ def test_device_api_shape(
         "pulsar_susanto_x", "ajazz_ak820_pro"
     ]
     assert [item["status"] for item in payload["devices"]] == statuses
-    assert [item["driver_state"] for item in payload["devices"]] == ["read_only", "not_implemented"]
+    assert [item["driver_state"] for item in payload["devices"]] == ["read_write", "not_implemented"]
     for item in payload["devices"]:
         assert set(item) == {
             "id", "name", "kind", "status", "connected_usb_ids", "battery_percent",
             "dpi", "polling_rate_hz", "driver_state", "note",
             "firmware_version", "capabilities", "connection",
-            "telemetry_updated_at", "settings_updated_at",
+            "telemetry_updated_at", "settings_updated_at", "write_options",
         }
         assert item["battery_percent"] is None
         assert item["dpi"] is None
@@ -57,8 +57,10 @@ def test_device_api_shape(
             "dpi_read": item["kind"] == "mouse",
             "polling_rate_read": item["kind"] == "mouse",
             "firmware_read": item["kind"] == "mouse",
-            "settings_write": False,
+            "settings_write": item["kind"] == "mouse",
         }
+        assert item["write_options"] == ({"dpi": [800, 1200], "polling_rate_hz": [500, 1000],
+                                           "profile_index": 0, "active_stage_index": 2, "firmware_version": "3.03"} if item["kind"] == "mouse" else None)
         assert item["connection"] == {
             "source": "usb_enumeration",
             "wired_usb_present": "0c45:8009" in item["connected_usb_ids"],

@@ -61,7 +61,7 @@ export default function App() {
         {devices === null ? (
           !error && <div className="empty-state" role="status"><span className="loading-dot" aria-hidden="true" /><h3>Checking USB devices</h3><p>Loading devices from the local API…</p></div>
         ) : detail ? (
-          selected ? <><DeviceDetails key={selected.id} device={selected} stale={stale} onTelemetryRead={refresh} /><ProfilePanel key={selected.id} device={selected} stale={stale} /></> : <div className="empty-state"><h3>Device not found</h3><p>This device is not registered. Choose a device from the dashboard.</p><a href="#/">Go to dashboard</a></div>
+          selected ? <><DeviceDetails key={selected.id} device={selected} stale={stale} onTelemetryRead={refresh} /><ProfilePanel key={selected.id} device={selected} stale={stale} onUpdated={refresh} /></> : <div className="empty-state"><h3>Device not found</h3><p>This device is not registered. Choose a device from the dashboard.</p><a href="#/">Go to dashboard</a></div>
         ) : devices.length ? (
           <section className="devices" aria-label="Known peripherals">{devices.map((device) => <DeviceCard key={device.id} device={device} stale={stale} />)}</section>
         ) : <div className="empty-state"><h3>No registered devices</h3><p>The backend returned no known device adapters.</p></div>}

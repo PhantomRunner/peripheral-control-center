@@ -1,0 +1,39 @@
+{
+  "record_type": "redacted_live_observation_not_wire_capture",
+  "recorded_at_utc": "2026-10-23T18:47:43Z",
+  "owner_reported_device": "Pulsar Susanto-X PSSTX21",
+  "descriptor_sha256": "655f29b1550cd7903311346991d3a5dc54988ab7326ac30cdd6284a784489c5e",
+  "raw_reports_included": false,
+  "retries": 0,
+  "persistence_tested": false,
+  "result": {
+    "status": "settings_test_verified_and_restored",
+    "usb_id": "3710:5406",
+    "tested": {"dpi": 800, "polling_rate_hz": 500},
+    "restored": {"dpi": 1200, "polling_rate_hz": 1000},
+    "profile_index": 0,
+    "active_stage_index": 2,
+    "adapter_enabled": false,
+    "diagnostics": {
+      "phase": "restoration_readback",
+      "settings_writes_attempted": 4,
+      "settings_writes_completed": 4,
+      "output_reports_attempted": 40,
+      "output_reports_completed": 40,
+      "last_read": {
+        "last_query": "identity",
+        "phase": "decode",
+        "output_reports_attempted": 12,
+        "output_reports_completed": 12,
+        "reply_diagnostics": {
+          "reports_received": 1,
+          "matching_command_reports": 1,
+          "bad_checksum_reports": 0,
+          "nonzero_status_reports": 0,
+          "last_payload_length": 8,
+          "expected_identity_fields_present": true
+        }
+      }
+    }
+  }
+}

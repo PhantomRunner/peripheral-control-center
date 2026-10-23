@@ -53,7 +53,7 @@ def test_explicit_config_read_is_separate_from_enumeration_and_battery(config_cl
     assert mouse["settings_updated_at"] == response.json()["recorded_at"]
     assert mouse["battery_percent"] is None and mouse["telemetry_updated_at"] is None
     assert mouse["connection"]["wireless_link_verified"] is None
-    assert mouse["capabilities"]["settings_write"] is False
+    assert mouse["capabilities"]["settings_write"] is True
     reader.assert_called_once()
     battery.assert_not_called()
     service.read(vendor_tools_closed=True)
@@ -131,3 +131,15 @@ def test_subprocess_failure_does_not_retry_or_disclose_diagnostics(monkeypatch, 
         read_pulsar_config()
     assert "private" not in str(error.value)
     run.assert_called_once()
+
+
+def test_read_finishing_after_apply_invalidation_cannot_repopulate_old_cache(config_client):
+    client, _headers, reader, _battery, service, _present = config_client
+    reading = reader.return_value
+    def delayed():
+        service.invalidate_config()  # Simulate Apply completing after the HID snapshot was read.
+        return reading
+    reader.side_effect = delayed
+    service.read_config(vendor_tools_closed=True)
+    mouse = client.get("/api/devices").json()["devices"][0]
+    assert mouse["dpi"] is None and mouse["settings_updated_at"] is None

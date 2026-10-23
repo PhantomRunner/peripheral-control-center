@@ -86,12 +86,12 @@ URL = "/api/devices/pulsar_susanto_x/settings/apply"
 DPI = {"settings": {"kind": "mouse", "dpi": 800}}
 
 
-def test_default_app_has_no_live_write_adapters():
+def test_default_app_requires_operator_confirmation_before_any_live_access():
     with TestClient(app, base_url="http://127.0.0.1") as client:
         token = client.get("/api/session", headers={"X-PCC-Client": "web"}).json()["token"]
         response = client.post(URL, headers={"Origin": "http://127.0.0.1", "X-PCC-Client": "web", "X-PCC-Session": token}, json=DPI)
     assert response.status_code == 409
-    assert "No validated" in response.json()["detail"]
+    assert "confirm other control tools" in response.json()["detail"]
 
 
 def test_dpi_requires_explicit_protected_post_and_matching_readback(apply_client):

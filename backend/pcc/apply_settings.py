@@ -1,10 +1,7 @@
-"""Explicit settings operations through separately validated adapters only.
-
-The default registry is empty. No live transport or protocol writer is present.
-"""
+"""Explicit settings operations through separately validated adapters only."""
 
 from collections.abc import Mapping
-from contextlib import AbstractContextManager
+from contextlib import AbstractContextManager, nullcontext
 from typing import Protocol
 
 from .ownership import DeviceOwnership
@@ -48,13 +45,14 @@ class ValidatedSettingsAdapter(Protocol):
         """Verify exact-device identity and external-tool ownership before IO.
 
         Opening and closing must not switch profiles or persist settings.
-        No real implementation is registered until hardware validation exists.
+        Live implementations require a separately reviewed hardware validation.
         """
         ...
 
 
 class ApplyRequest(StrictModel):
     settings: SettingsIntent
+    vendor_tools_closed: bool = False
 
 
 class RgbSession(Protocol):
@@ -83,7 +81,7 @@ class SettingsService:
         self._rgb_adapters = dict(rgb_adapters or {})
         self._ownership = ownership if ownership is not None else DeviceOwnership()
 
-    def apply(self, device_id: DeviceId, desired: SettingsIntent) -> MouseSettings | KeyboardSettings:
+    def apply(self, device_id: DeviceId, desired: SettingsIntent, *, vendor_tools_closed: bool = False) -> MouseSettings | KeyboardSettings:
         if device_id == "ajazz_ak820_pro" and isinstance(desired, KeyboardSettings):
             return self._apply_rgb(device_id, desired)
         if device_id != "pulsar_susanto_x" or not isinstance(desired, MouseSettings):
@@ -91,6 +89,8 @@ class SettingsService:
         adapter = self._adapters.get(device_id)
         if adapter is None or not adapter.validation_reference:
             raise SettingsUnavailableError("No validated settings adapter is enabled for this device.")
+        if getattr(adapter, "requires_operator_confirmation", False) and vendor_tools_closed is not True:
+            raise SettingsUnavailableError("Close competing control tools and confirm closure before Apply.")
         try:
             if desired.dpi is not None:
                 adapter.validate_dpi(desired.dpi)
@@ -98,7 +98,10 @@ class SettingsService:
                 adapter.validate_polling_rate(desired.polling_rate_hz)
         except ValueError:
             raise InvalidSettingsError("Desired settings are not supported by this adapter.") from None
-        with self._ownership.claim(device_id):
+        # Live adapter sessions can hold the same PCC lock themselves, from
+        # before HID open through final readback; avoid acquiring it twice.
+        ownership = nullcontext() if getattr(adapter, "session_owns_device_lock", False) else self._ownership.claim(device_id)
+        with ownership:
             try:
                 with adapter.session() as session:
                     profile = session.read_active_profile()

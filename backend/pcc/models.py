@@ -24,6 +24,14 @@ class DeviceConnection(BaseModel):
     wireless_link_verified: bool | None = None
 
 
+class MouseWriteOptions(BaseModel):
+    dpi: list[int]
+    polling_rate_hz: list[int]
+    profile_index: int = 0
+    active_stage_index: int = 2
+    firmware_version: str = "3.03"
+
+
 class DeviceSummary(BaseModel):
     id: str
     name: str
@@ -38,7 +46,8 @@ class DeviceSummary(BaseModel):
     settings_updated_at: datetime | None = None
     capabilities: DeviceCapabilities = Field(default_factory=DeviceCapabilities)
     connection: DeviceConnection = Field(default_factory=DeviceConnection)
-    driver_state: Literal["not_implemented", "read_only"] = "not_implemented"
+    driver_state: Literal["not_implemented", "read_only", "read_write"] = "not_implemented"
+    write_options: MouseWriteOptions | None = None
     note: str
 
 

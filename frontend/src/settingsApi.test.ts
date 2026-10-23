@@ -8,7 +8,7 @@ describe('polling Apply readback', () => {
       .mockResolvedValueOnce(Response.json({ device_id: 'pulsar_susanto_x', status: 'verified', settings: desired }));
     vi.stubGlobal('fetch', fetchMock);
     expect(await new SettingsClient().apply('pulsar_susanto_x', desired)).toEqual(desired);
-    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ settings: desired });
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ settings: desired, vendor_tools_closed: false });
   });
 
   it('rejects unknown or incorrect polling in a nominally successful response', async () => {

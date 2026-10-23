@@ -19,7 +19,8 @@ export type Device = {
   firmware_version: string | null;
   telemetry_updated_at: string | null;
   settings_updated_at: string | null;
-  driver_state: 'not_implemented' | 'read_only';
+  driver_state: 'not_implemented' | 'read_only' | 'read_write';
+  write_options: { dpi: number[]; polling_rate_hz: number[]; profile_index: number; active_stage_index: number; firmware_version: string } | null;
   note: string;
   capabilities: DeviceCapabilities;
   connection: {
