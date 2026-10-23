@@ -1,4 +1,4 @@
-"""Local-only read-only API. No firmware or settings operations."""
+"""Local-only discovery and software profiles. No hardware writes enabled."""
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -6,6 +6,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from .models import DeviceList
 from .drivers.registry import discover_devices
 from .security import LocalSession, LocalSessionMiddleware, SessionStore, local_origin
+from .profile_api import router as profile_router
 
 app = FastAPI(title="Peripheral Control Center API", version="0.1.0")
 sessions = SessionStore()
@@ -14,6 +15,7 @@ app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=["localhost", "127.0.0.1"],
 )
+app.include_router(profile_router)
 
 
 @app.get("/api/session", response_model=LocalSession)

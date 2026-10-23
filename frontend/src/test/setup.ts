@@ -12,5 +12,5 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.useRealTimers();
-  window.history.replaceState({}, '', '/');
+  if (typeof window !== 'undefined') window.history.replaceState({}, '', '/');
 });

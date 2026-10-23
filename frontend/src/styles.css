@@ -87,6 +87,19 @@ h1 span { color: #9991fb; }
 .loading-dot { display: block; margin: 0 auto; height: 12px; width: 12px; border-radius: 50%; background: #a49aff; animation: pulse 1.2s infinite alternate; }
 .error { background: #41262d; border: 1px solid #7c4050; border-radius: 12px; padding: 16px; color: #ffd6dd; margin-bottom: 15px; font-size: 13px; line-height: 1.7; }
 .stale-label, .disconnect { color: #f0cc8d; font-size: 13px; line-height: 1.6; margin-bottom: 18px; }
+.profile-panel { margin-top: 20px; }
+.secondary { min-height: 42px; border: 1px solid #565476; border-radius: 9px; padding: 10px 14px; color: #d3d0fa; background: #25253c; font: inherit; font-size: 12px; cursor: pointer; }
+.secondary:disabled { opacity: .5; cursor: default; }
+.secondary:hover:enabled { background: #33314d; }
+.secondary.danger { color: #ffc9cf; border-color: #805364; }
+.profile-toolbar, .profile-actions { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin: 20px 0; }
+.profile-toolbar label { flex: 1; min-width: 180px; }
+.profile-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 18px; border: 1px solid #3d4455; border-radius: 12px; padding: 18px; margin: 20px 0; min-width: 0; }
+.profile-fields legend { font-size: 12px; color: #b6afd9; padding: 0 7px; }
+.profile-panel label { display: flex; flex-direction: column; gap: 9px; font-size: 12px; color: #c3ccdf; }
+.profile-panel input, .profile-panel select { font: inherit; min-height: 42px; width: 100%; min-width: 0; border: 1px solid #535b72; border-radius: 8px; background: #101622; padding: 9px 11px; color: #ebecff; }
+.profile-panel input[type=color] { padding: 4px; }
+.profile-notice { color: #8ce4c6; font-size: 13px; line-height: 1.6; }
 @keyframes pulse { to { opacity: .25; } }
 @media (prefers-reduced-motion: reduce) { .loading-dot { animation: none; } }
 @media (max-width: 1100px) {
