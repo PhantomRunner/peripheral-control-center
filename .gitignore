@@ -1,0 +1,14 @@
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+# Local tooling
+.idea/
+.vscode/
+.env
+.DS_Store
