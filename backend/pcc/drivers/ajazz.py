@@ -2,7 +2,8 @@
 
 from typing import AbstractSet
 
-from pcc.models import DeviceCapabilities, DeviceConnection, DeviceSummary
+from pcc.models import DeviceCapabilities, DeviceConnection, DeviceSummary, RgbWriteOptions
+from .protocols.ajazz_rgb import BRIGHTNESS_STEPS
 
 
 class AjazzAdapter:
@@ -16,8 +17,9 @@ class AjazzAdapter:
             id="ajazz_ak820_pro",
             name="AJAZZ AK820 Pro",
             kind="keyboard",
-            capabilities=DeviceCapabilities(control_read=True),
-            driver_state="read_only",
+            capabilities=DeviceCapabilities(control_read=True, settings_write=True),
+            driver_state="read_write",
+            rgb_write_options=RgbWriteOptions(brightness_steps=list(BRIGHTNESS_STEPS)),
             status=(
                 "wired_detected" if wired else
                 "receiver_detected" if receiver else "offline"

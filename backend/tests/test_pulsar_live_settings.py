@@ -72,7 +72,7 @@ def live_adapter_client(monkeypatch, tmp_path):
 
 
 def body(dpi=800, hz=500, confirmed=True):
-    return {"settings": {"kind": "mouse", "dpi": dpi, "polling_rate_hz": hz}, "vendor_tools_closed": confirmed}
+    return {"settings": {"kind": "mouse", "dpi": dpi, "polling_rate_hz": hz}, "vendor_tools_closed": confirmed, "allow_device_memory_writes": True}
 
 
 def test_combined_apply_uses_only_hardware_verified_packets_and_one_ownership_scope(live_adapter_client):
@@ -167,6 +167,15 @@ def test_unverified_firmware_cannot_open_a_settings_write_path(live_adapter_clie
     monkeypatch.setattr(driver, "receive_reply", Mock(return_value=Reply(0x12, bytes((3, 4)))))
     assert client.post(URL, headers=headers, json=body()).status_code == 502
     read.assert_not_called()
+    write.assert_not_called()
+
+
+def test_memory_write_consent_is_required_before_discovery(live_adapter_client):
+    client, headers, discover, _read, _ack, write, *_rest = live_adapter_client
+    request = body()
+    request["allow_device_memory_writes"] = False
+    assert client.post(URL, headers=headers, json=request).status_code == 409
+    discover.assert_not_called()
     write.assert_not_called()
 
 

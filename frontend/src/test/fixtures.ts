@@ -9,6 +9,7 @@ export const mouse: Device = {
   control_responded: null, control_checked_at: null,
   driver_state: 'not_implemented',
   write_options: null,
+  rgb_write_options: null,
   note: '8K receiver detected. The mouse link and settings are not read yet.',
   capabilities: {
     usb_discovery: true, battery_read: false, dpi_read: false,

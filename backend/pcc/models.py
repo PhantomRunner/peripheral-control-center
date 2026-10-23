@@ -33,6 +33,13 @@ class MouseWriteOptions(BaseModel):
     firmware_version: str = "3.03"
 
 
+class RgbWriteOptions(BaseModel):
+    mode: Literal["static"] = "static"
+    brightness_steps: list[int]
+    feedback: Literal["acknowledged"] = "acknowledged"
+    may_persist: Literal[True] = True
+
+
 class DeviceSummary(BaseModel):
     id: str
     name: str
@@ -51,6 +58,7 @@ class DeviceSummary(BaseModel):
     connection: DeviceConnection = Field(default_factory=DeviceConnection)
     driver_state: Literal["not_implemented", "read_only", "read_write"] = "not_implemented"
     write_options: MouseWriteOptions | None = None
+    rgb_write_options: RgbWriteOptions | None = None
     note: str
 
 

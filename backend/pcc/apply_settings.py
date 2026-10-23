@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from contextlib import AbstractContextManager, nullcontext
-from typing import Protocol
+from typing import Literal, Protocol
 
 from .ownership import DeviceOwnership
 from .settings import DeviceId, KeyboardSettings, MouseSettings, RgbSettings, SettingsIntent, StrictModel
@@ -53,6 +53,21 @@ class ValidatedSettingsAdapter(Protocol):
 class ApplyRequest(StrictModel):
     settings: SettingsIntent
     vendor_tools_closed: bool = False
+    allow_device_memory_writes: bool = False
+
+
+class RgbAcknowledgement(StrictModel):
+    requested: KeyboardSettings
+    feedback: Literal["command_acknowledgements"] = "command_acknowledgements"
+
+
+class AcknowledgedRgbAdapter(Protocol):
+    validation_reference: str
+    session_owns_device_lock: bool
+
+    def wired_usb_present(self) -> bool: ...
+    def validate_rgb(self, desired: RgbSettings) -> None: ...
+    def apply_rgb(self, desired: KeyboardSettings) -> RgbAcknowledgement: ...
 
 
 class RgbSession(Protocol):
@@ -76,13 +91,20 @@ class ValidatedRgbAdapter(Protocol):
 
 
 class SettingsService:
-    def __init__(self, adapters: Mapping[str, ValidatedSettingsAdapter] | None = None, ownership: DeviceOwnership | None = None, rgb_adapters: Mapping[str, ValidatedRgbAdapter] | None = None) -> None:
+    def __init__(self, adapters: Mapping[str, ValidatedSettingsAdapter] | None = None, ownership: DeviceOwnership | None = None, rgb_adapters: Mapping[str, ValidatedRgbAdapter] | None = None,
+                 ack_rgb_adapters: Mapping[str, AcknowledgedRgbAdapter] | None = None) -> None:
         self._adapters = dict(adapters or {})
         self._rgb_adapters = dict(rgb_adapters or {})
+        self._ack_rgb_adapters = dict(ack_rgb_adapters or {})
+        if self._rgb_adapters.keys() & self._ack_rgb_adapters.keys():
+            raise ValueError("A device must have one explicit RGB feedback contract.")
         self._ownership = ownership if ownership is not None else DeviceOwnership()
 
-    def apply(self, device_id: DeviceId, desired: SettingsIntent, *, vendor_tools_closed: bool = False) -> MouseSettings | KeyboardSettings:
+    def apply(self, device_id: DeviceId, desired: SettingsIntent, *, vendor_tools_closed: bool = False,
+              allow_device_memory_writes: bool = False) -> MouseSettings | KeyboardSettings | RgbAcknowledgement:
         if device_id == "ajazz_ak820_pro" and isinstance(desired, KeyboardSettings):
+            if device_id in self._ack_rgb_adapters:
+                return self._apply_ack_rgb(device_id, desired, vendor_tools_closed, allow_device_memory_writes)
             return self._apply_rgb(device_id, desired)
         if device_id != "pulsar_susanto_x" or not isinstance(desired, MouseSettings):
             raise SettingsUnavailableError("This settings operation is unavailable.")
@@ -91,6 +113,8 @@ class SettingsService:
             raise SettingsUnavailableError("No validated settings adapter is enabled for this device.")
         if getattr(adapter, "requires_operator_confirmation", False) and vendor_tools_closed is not True:
             raise SettingsUnavailableError("Close competing control tools and confirm closure before Apply.")
+        if getattr(adapter, "requires_device_memory_consent", False) and allow_device_memory_writes is not True:
+            raise SettingsUnavailableError("Explicit device-memory write consent is required.")
         try:
             if desired.dpi is not None:
                 adapter.validate_dpi(desired.dpi)
@@ -148,3 +172,23 @@ class SettingsService:
                     return KeyboardSettings(kind="keyboard", rgb=actual)
             except (OSError, RuntimeError):
                 raise SettingsOperationError("RGB operation failed. State may have changed; check it before retrying.") from None
+
+    def _apply_ack_rgb(self, device_id: DeviceId, desired: KeyboardSettings, vendor_tools_closed: bool, allow_memory: bool) -> RgbAcknowledgement:
+        adapter = self._ack_rgb_adapters[device_id]
+        if not adapter.validation_reference or vendor_tools_closed is not True or allow_memory is not True:
+            raise SettingsUnavailableError("Confirm tool closure and allow device-memory writes before RGB Apply.")
+        if not adapter.wired_usb_present():
+            raise SettingsUnavailableError("RGB settings require the wired keyboard.")
+        try:
+            adapter.validate_rgb(desired.rgb)
+        except ValueError:
+            raise InvalidSettingsError("RGB intent is outside the supported static settings.") from None
+        ownership = nullcontext() if adapter.session_owns_device_lock else self._ownership.claim(device_id)
+        with ownership:
+            try:
+                feedback = adapter.apply_rgb(desired)
+            except (OSError, RuntimeError):
+                raise SettingsOperationError("RGB acknowledgement was not confirmed. Settings may have changed.") from None
+            if not isinstance(feedback, RgbAcknowledgement) or feedback.requested != desired:
+                raise SettingsVerificationError("RGB acknowledgement did not match this request. Settings may have changed.")
+            return feedback

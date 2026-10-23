@@ -23,6 +23,7 @@ from typing import Protocol
 
 from pcc.diagnostics.pulsar_probe import ProbeBlocked, ProbeTarget, check_competitors, device_numbers, process_deadline
 from pcc.drivers.protocols.ajazz_readonly import InvalidControlAcknowledgement, parse_control_ack
+from pcc.drivers.protocols.ajazz_rgb import static_rgb_payload
 from pcc.ownership import DeviceBusyError, DeviceOwnership, OwnershipUnavailableError
 
 DESCRIPTOR_SHA256 = "a28e1d82c9261a181f75ab65ee28dc2e66e003e6d9a5c337df3a124bb8e62c7f"
@@ -114,13 +115,14 @@ class FeatureTransport(Protocol):
 
 
 class HidrawFeatures:
-    def __init__(self, target: AjazzTarget, descriptor: int, numbers: frozenset[int]):
+    def __init__(self, target: AjazzTarget, descriptor: int, numbers: frozenset[int], *, static_color: str = "#4080ff", brightness_percent: int = 60):
         self.target, self.descriptor, self.numbers = target, descriptor, numbers
         self.set_attempts = self.set_completed = self.get_attempts = 0
         self.phase = "initial_feature"
         self.last_received_length: int | None = None
         self.last_ack_command: int | None = None
         self.last_ack_success: bool | None = None
+        self._rgb_payload = static_rgb_payload(static_color, brightness_percent)
 
     def _preflight(self) -> None:
         self.target.verify_cached_identity()
@@ -147,6 +149,8 @@ class HidrawFeatures:
 
     def send_feature(self, action: FixedFeature) -> None:
         payload = feature_payload(action)
+        if action is FixedFeature.STATIC_BLUE_DATA:
+            payload = self._rgb_payload
         if self.set_attempts >= 4 or action is not tuple(FixedFeature)[self.set_attempts]:
             raise ProbeBlocked("Only the fixed RGB experiment order is allowed.")
         self.phase = action.name.lower()
@@ -165,7 +169,7 @@ class HidrawFeatures:
 
 
 @contextmanager
-def open_features(target: AjazzTarget, *, vendor_tools_closed: bool) -> Iterator[HidrawFeatures]:
+def open_features(target: AjazzTarget, *, vendor_tools_closed: bool, static_color: str = "#4080ff", brightness_percent: int = 60) -> Iterator[HidrawFeatures]:
     if os.geteuid() == 0 or vendor_tools_closed is not True:
         raise ProbeBlocked("Run as the normal user after closing competing control tools.")
     with DeviceOwnership().claim("ajazz_ak820_pro"):
@@ -179,12 +183,13 @@ def open_features(target: AjazzTarget, *, vendor_tools_closed: bool) -> Iterator
                 raise ProbeBlocked("Wired control node changed while opening.")
             target.verify_cached_identity()
             check_competitors(numbers)
-            yield HidrawFeatures(target, descriptor, numbers)
+            yield HidrawFeatures(target, descriptor, numbers, static_color=static_color, brightness_percent=brightness_percent)
         finally:
             os.close(descriptor)
 
 
-def observe(transport: FeatureTransport) -> dict:
+def observe(transport: FeatureTransport, *, color: str = "#4080ff", brightness_percent: int = 60) -> dict:
+    static_rgb_payload(color, brightness_percent)  # Validate semantic intent before the first IO.
     initial = transport.get_feature()
     if len(initial) != 64:
         raise ProbeBlocked("Initial feature report is incomplete.")
@@ -199,7 +204,7 @@ def observe(transport: FeatureTransport) -> dict:
             if len(acknowledgement) != 64 or acknowledgement[:4] != bytes((4, 2, 0, 1)):
                 raise InvalidControlAcknowledgement("SAVE acknowledgement was not confirmed.")
     return {"status": "lighting_sequence_acknowledged_visual_check_required", "usb_id": "0c45:8009",
-            "requested": {"mode": "static", "color": "#4080ff", "brightness_level": 3},
+            "requested": {"mode": "static", "color": color.lower(), "brightness_level": brightness_percent // 20},
             "acknowledged_commands": [0x18, 0x13, 0x02],
             "actual_rgb": None, "battery_percent": None, "firmware_version": None,
             "persistence_verified": False, "device_model_verified": False, "adapter_enabled": False}
@@ -219,25 +224,42 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument("--check-access", action="store_true")
     mode.add_argument("--execute", action="store_true")
     mode.add_argument("--read-control", action="store_true", help="One GET only; never send a Feature SET.")
+    mode.add_argument("--apply-rgb", action="store_true", help="Explicit validated static RGB Apply; memory-write consent required.")
     parser.add_argument("--vendor-tools-closed", action="store_true")
+    parser.add_argument("--allow-device-memory-writes", action="store_true")
+    parser.add_argument("--color")
+    parser.add_argument("--brightness-percent", type=int)
     args = parser.parse_args(argv)
-    if not args.check_access and not args.execute and not args.read_control:
+    if not args.apply_rgb and (args.color is not None or args.brightness_percent is not None or args.allow_device_memory_writes):
+        parser.error("Settings arguments require --apply-rgb.")
+    if not args.check_access and not args.execute and not args.read_control and not args.apply_rgb:
         print(json.dumps(plan(), indent=2))
         return 0
     transport: HidrawFeatures | None = None
     try:
         if os.geteuid() == 0:
             raise ProbeBlocked("Do not run as root.")
-        if (args.execute or args.read_control) and not args.vendor_tools_closed:
+        if (args.execute or args.read_control or args.apply_rgb) and not args.vendor_tools_closed:
             raise ProbeBlocked("Close competing tools and confirm closure before execution.")
+        if args.apply_rgb:
+            if not args.allow_device_memory_writes:
+                raise ProbeBlocked("Explicit device-memory write consent is required.")
+            static_rgb_payload(args.color, args.brightness_percent)
         target = discover_target()
         if args.check_access:
             missing = check_competitors(device_numbers(target))
             print(json.dumps({"status": "manual_tool_closure_required" if missing else "access_preflight_passed",
                               "uninspectable_process_count": missing, "device_io": False, "ownership_verified": False}))
             return 2 if missing else 0
-        with process_deadline(), open_features(target, vendor_tools_closed=args.vendor_tools_closed) as transport:
-            result = observe_control(transport) if args.read_control else observe(transport)
+        options = {"vendor_tools_closed": args.vendor_tools_closed}
+        if args.apply_rgb:
+            options.update(static_color=args.color.lower(), brightness_percent=args.brightness_percent)
+        with process_deadline(), open_features(target, **options) as transport:
+            result = observe_control(transport) if args.read_control else observe(
+                transport, color=args.color.lower() if args.apply_rgb else "#4080ff",
+                brightness_percent=args.brightness_percent if args.apply_rgb else 60)
+            if args.apply_rgb:
+                result["status"] = "lighting_sequence_acknowledged"
             result["diagnostics"] = transport.diagnostics()
         print(json.dumps(result, indent=2))
         return 0

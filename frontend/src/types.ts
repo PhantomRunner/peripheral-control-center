@@ -24,6 +24,7 @@ export type Device = {
   control_checked_at: string | null;
   driver_state: 'not_implemented' | 'read_only' | 'read_write';
   write_options: { dpi: number[]; polling_rate_hz: number[]; profile_index: number; active_stage_index: number; firmware_version: string } | null;
+  rgb_write_options: { mode: 'static'; brightness_steps: number[]; feedback: 'acknowledged'; may_persist: true } | null;
   note: string;
   capabilities: DeviceCapabilities;
   connection: {

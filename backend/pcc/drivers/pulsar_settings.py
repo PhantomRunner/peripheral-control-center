@@ -70,6 +70,7 @@ class PulsarSettingsSession:
 class PulsarSettingsAdapter:
     validation_reference = "PSSTX21 approved 2026-10-23: 800/500 readback, 1200/1000 restored; profile 1, stage 3"
     requires_operator_confirmation = True
+    requires_device_memory_consent = True
     session_owns_device_lock = True
 
     @staticmethod

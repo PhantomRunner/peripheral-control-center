@@ -74,10 +74,10 @@ def test_default_registry_preserves_usb_presence_and_unknown_telemetry(
             "dpi_read": device.kind == "mouse",
             "polling_rate_read": device.kind == "mouse",
             "firmware_read": device.kind == "mouse",
-            "settings_write": device.kind == "mouse",
+            "settings_write": True,
             "control_read": device.kind == "keyboard",
         }
-        assert device.driver_state == ("read_write" if device.kind == "mouse" else "read_only")
+        assert device.driver_state == "read_write"
     assert mouse.connection.wired_usb_present is False
     assert mouse.connection.receiver_usb_present == ("3710:5406" in present)
     assert keyboard.connection.wired_usb_present == ("0c45:8009" in present)

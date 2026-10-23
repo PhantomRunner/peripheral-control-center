@@ -1,0 +1,32 @@
+{
+  "record_type": "redacted_live_observation_not_wire_capture",
+  "recorded_at_utc": "2026-10-23T19:23:29Z",
+  "owner_reported_device": "AJAZZ AK820 Pro wired",
+  "descriptor_sha256": "a28e1d82c9261a181f75ab65ee28dc2e66e003e6d9a5c337df3a124bb8e62c7f",
+  "owner_observed_color": "blue",
+  "exact_rgb_measured": false,
+  "brightness_measured": false,
+  "raw_reports_included": false,
+  "retries": 0,
+  "result": {
+    "status": "lighting_sequence_acknowledged_visual_check_required",
+    "usb_id": "0c45:8009",
+    "requested": {"mode": "static", "color": "#4080ff", "brightness_level": 3},
+    "acknowledged_commands": [24, 19, 2],
+    "actual_rgb": null,
+    "battery_percent": null,
+    "firmware_version": null,
+    "persistence_verified": false,
+    "device_model_verified": false,
+    "adapter_enabled": false,
+    "diagnostics": {
+      "phase": "save",
+      "feature_sets_attempted": 4,
+      "feature_sets_completed": 4,
+      "feature_gets_attempted": 4,
+      "last_received_length": 65,
+      "last_known_ack_command": 2,
+      "last_known_ack_success": true
+    }
+  }
+}

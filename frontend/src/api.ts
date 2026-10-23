@@ -42,6 +42,10 @@ function isDevice(value: unknown): value is Device {
       && typeof value.write_options.active_stage_index === 'number' && Number.isInteger(value.write_options.active_stage_index)
       && value.write_options.active_stage_index >= 0 && value.write_options.active_stage_index <= 5
       && typeof value.write_options.firmware_version === 'string' && /^[0-9]+\.[0-9a-f]{2}$/.test(value.write_options.firmware_version)))
+    && (value.rgb_write_options === null || (isRecord(value.rgb_write_options)
+      && value.rgb_write_options.mode === 'static' && value.rgb_write_options.feedback === 'acknowledged'
+      && value.rgb_write_options.may_persist === true && Array.isArray(value.rgb_write_options.brightness_steps)
+      && value.rgb_write_options.brightness_steps.every((n) => typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 100)))
     && typeof value.note === 'string'
     && capabilityKeys.every((key) => typeof capabilities[key] === 'boolean')
     && connection.source === 'usb_enumeration'

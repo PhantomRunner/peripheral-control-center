@@ -208,3 +208,43 @@ def test_read_control_flag_cannot_be_combined_with_write_execution(monkeypatch):
     monkeypatch.setattr(probe, "discover_target", Mock(side_effect=AssertionError("No device IO")))
     with pytest.raises(SystemExit):
         probe.main(["--read-control", "--execute", "--vendor-tools-closed"])
+
+
+def test_application_settings_require_both_consents_before_target_discovery(monkeypatch, capsys):
+    discover = Mock(side_effect=AssertionError("No IO before consent/validation"))
+    monkeypatch.setattr(probe, "discover_target", discover)
+    monkeypatch.setattr(probe.os, "geteuid", lambda: 1000)
+    args = ["--apply-rgb", "--color", "#4080ff", "--brightness-percent", "60"]
+    assert probe.main(args) == 2
+    assert probe.main(args + ["--vendor-tools-closed"]) == 2
+    bad = ["--apply-rgb", "--color", "#4080ff", "--brightness-percent", "50", "--vendor-tools-closed", "--allow-device-memory-writes"]
+    assert probe.main(bad) == 2
+    discover.assert_not_called()
+
+
+def test_parameterized_static_data_preserves_the_fixed_sequence_and_no_rgb_readback(monkeypatch):
+    target = SimpleNamespace(verify_cached_identity=Mock())
+    monkeypatch.setattr(probe, "check_competitors", Mock())
+    monkeypatch.setattr(probe.time, "sleep", Mock())
+    responses = iter([bytes(64), ack(0x18), ack(0x13), ack(2)])
+    outputs = []
+    def ioctl(descriptor, command, buffer, mutate):
+        assert descriptor == 99 and len(buffer) == 65 and mutate is True
+        if command == probe.SET_FEATURE_65:
+            assert buffer[0] == 0
+            outputs.append(bytes(buffer[1:]))
+            return 65
+        assert command == probe.GET_FEATURE_65 and buffer[0] == 0
+        buffer[:] = b"\0" + next(responses)
+        return 65
+    monkeypatch.setattr(probe.fcntl, "ioctl", ioctl)
+    transport = probe.HidrawFeatures(target, 99, frozenset({42}), static_color="#123456", brightness_percent=40)
+    result = probe.observe(transport, color="#123456", brightness_percent=40)
+    assert len(outputs) == 4 and outputs[2][:4] == bytes.fromhex("01 12 34 56")
+    assert outputs[2][9] == 2
+    assert outputs[0] == probe.feature_payload(probe.FixedFeature.START)
+    assert outputs[1] == probe.feature_payload(probe.FixedFeature.MODE_CONFIG)
+    assert outputs[3] == probe.feature_payload(probe.FixedFeature.SAVE)
+    assert result["requested"] == {"mode": "static", "color": "#123456", "brightness_level": 2}
+    assert result["actual_rgb"] is None and result["persistence_verified"] is False
+    assert transport.diagnostics()["feature_sets_completed"] == transport.diagnostics()["feature_gets_attempted"] == 4

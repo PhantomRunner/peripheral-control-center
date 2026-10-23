@@ -8,7 +8,7 @@ describe('polling Apply readback', () => {
       .mockResolvedValueOnce(Response.json({ device_id: 'pulsar_susanto_x', status: 'verified', settings: desired }));
     vi.stubGlobal('fetch', fetchMock);
     expect(await new SettingsClient().apply('pulsar_susanto_x', desired)).toEqual(desired);
-    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ settings: desired, vendor_tools_closed: false });
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ settings: desired, vendor_tools_closed: false, allow_device_memory_writes: false });
   });
 
   it('rejects unknown or incorrect polling in a nominally successful response', async () => {
@@ -32,6 +32,28 @@ describe('RGB Apply readback', () => {
     const desired = { kind: 'keyboard' as const, rgb: { mode: 'static' as const, color: '#112233', brightness_percent: 60 } };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(Response.json({ token: 'a'.repeat(43), expires_in_seconds: 1800 }))
       .mockResolvedValueOnce(Response.json({ device_id: 'ajazz_ak820_pro', status: 'acknowledged', command: 0x13 })));
-    await expect(new SettingsClient().apply('ajazz_ak820_pro', desired)).rejects.toThrow('No valid readback confirmation');
+    await expect(new SettingsClient().apply('ajazz_ak820_pro', desired)).rejects.toThrow('No matching RGB acknowledgement');
   });
+});
+
+const requestedRgb = { kind: 'keyboard' as const, rgb: { mode: 'static' as const, color: '#4080ff', brightness_percent: 60 } };
+const ackResult = { device_id: 'ajazz_ak820_pro', status: 'acknowledged', requested_settings: requestedRgb,
+  actual_settings: null, feedback: 'command_acknowledgements', readback_available: false, persistence_verified: false, may_persist: true };
+
+it('keeps acknowledged RGB intent separate from actual settings', async () => {
+  const fetchMock = vi.fn().mockResolvedValueOnce(Response.json({ token: 'a'.repeat(43), expires_in_seconds: 1800 }))
+    .mockResolvedValueOnce(Response.json(ackResult));
+  vi.stubGlobal('fetch', fetchMock);
+  expect(await new SettingsClient().apply('ajazz_ak820_pro', requestedRgb, true, true)).toEqual({ status: 'acknowledged', requested: requestedRgb, actual: null });
+  expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ settings: requestedRgb, vendor_tools_closed: true, allow_device_memory_writes: true });
+});
+
+it.each([
+  { ...ackResult, actual_settings: requestedRgb }, { ...ackResult, persistence_verified: true },
+  { ...ackResult, feedback: 'usb_write_only' },
+  { ...ackResult, requested_settings: { ...requestedRgb, rgb: { ...requestedRgb.rgb, color: '#ffffff' } } },
+])('rejects invented or unmatched RGB acknowledgements (%#)', async (response) => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(Response.json({ token: 'a'.repeat(43), expires_in_seconds: 1800 }))
+    .mockResolvedValueOnce(Response.json(response)));
+  await expect(new SettingsClient().apply('ajazz_ak820_pro', requestedRgb, true, true)).rejects.toThrow('No matching RGB acknowledgement');
 });

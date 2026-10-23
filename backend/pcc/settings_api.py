@@ -4,15 +4,16 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from .apply_settings import ApplyRequest, InvalidSettingsError, SettingsOperationError, SettingsService, SettingsUnavailableError, SettingsVerificationError
+from .apply_settings import ApplyRequest, InvalidSettingsError, RgbAcknowledgement, SettingsOperationError, SettingsService, SettingsUnavailableError, SettingsVerificationError
 from .ownership import DeviceBusyError, OwnershipUnavailableError
 from .drivers.pulsar_settings import PulsarSettingsAdapter
-from .settings import DeviceId, SettingsIntent, StrictModel
+from .drivers.ajazz_rgb import AjazzRgbAdapter
+from .settings import DeviceId, KeyboardSettings, SettingsIntent, StrictModel
 from .telemetry import TelemetryService
 from .telemetry_api import get_telemetry_service
 
 router = APIRouter(prefix="/api/devices")
-_service = SettingsService({"pulsar_susanto_x": PulsarSettingsAdapter()})
+_service = SettingsService({"pulsar_susanto_x": PulsarSettingsAdapter()}, ack_rgb_adapters={"ajazz_ak820_pro": AjazzRgbAdapter()})
 
 
 def get_settings_service() -> SettingsService:
@@ -25,13 +26,27 @@ class ApplyResult(StrictModel):
     settings: SettingsIntent
 
 
-@router.post("/{device_id}/settings/apply", response_model=ApplyResult)
-def apply_settings(device_id: DeviceId, body: ApplyRequest, service: Annotated[SettingsService, Depends(get_settings_service)], telemetry: Annotated[TelemetryService, Depends(get_telemetry_service)]) -> ApplyResult:
+class AcknowledgedApplyResult(StrictModel):
+    device_id: Literal["ajazz_ak820_pro"] = "ajazz_ak820_pro"
+    status: Literal["acknowledged"] = "acknowledged"
+    requested_settings: KeyboardSettings
+    actual_settings: None = None
+    feedback: Literal["command_acknowledgements"] = "command_acknowledgements"
+    readback_available: Literal[False] = False
+    persistence_verified: Literal[False] = False
+    may_persist: Literal[True] = True
+
+
+@router.post("/{device_id}/settings/apply", response_model=ApplyResult | AcknowledgedApplyResult)
+def apply_settings(device_id: DeviceId, body: ApplyRequest, service: Annotated[SettingsService, Depends(get_settings_service)], telemetry: Annotated[TelemetryService, Depends(get_telemetry_service)]) -> ApplyResult | AcknowledgedApplyResult:
     try:
-        actual = service.apply(device_id, body.settings, vendor_tools_closed=body.vendor_tools_closed)
+        actual = service.apply(device_id, body.settings, vendor_tools_closed=body.vendor_tools_closed,
+                               allow_device_memory_writes=body.allow_device_memory_writes)
+        if isinstance(actual, RgbAcknowledgement):
+            return AcknowledgedApplyResult(requested_settings=actual.requested)
         return ApplyResult(device_id=device_id, settings=actual)
     except SettingsUnavailableError:
-        raise HTTPException(409, "Settings operation is unavailable. Check support and confirm other control tools are closed.") from None
+        raise HTTPException(409, "Settings operation is unavailable. Please confirm other control tools are closed and allow device-memory writes.") from None
     except InvalidSettingsError:
         raise HTTPException(422, "Settings are not supported by this adapter.") from None
     except DeviceBusyError:

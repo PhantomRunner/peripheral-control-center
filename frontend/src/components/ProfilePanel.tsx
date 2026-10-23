@@ -5,7 +5,7 @@ import { ApplyControls } from './ApplyControls';
 
 function initialSettings(kind: Device['kind']): SettingsIntent {
   return kind === 'mouse' ? { kind: 'mouse', dpi: 800, polling_rate_hz: 1000 }
-    : { kind: 'keyboard', rgb: { mode: 'static', color: '#7766ff', brightness_percent: 50 } };
+    : { kind: 'keyboard', rgb: { mode: 'static', color: '#7766ff', brightness_percent: 60 } };
 }
 
 export function ProfilePanel({ device, stale = false, onUpdated }: { device: Device; stale?: boolean; onUpdated?: () => Promise<void> }) {
