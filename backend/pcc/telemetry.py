@@ -1,0 +1,116 @@
+"""Manual battery/firmware reads for the two PSSTX21 queries observed on 2026-10-23.
+
+Enumeration only attaches the last timestamped observation. It never starts HID IO.
+The standalone child retains descriptor/ownership checks and the two-output budget.
+"""
+
+import subprocess
+import sys
+import threading
+from collections.abc import Callable
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Literal
+
+from pydantic import Field, ValidationError
+
+from .drivers import registry
+from .models import DeviceSummary
+from .settings import StrictModel
+
+
+class TelemetryUnavailable(Exception):
+    pass
+
+
+class TelemetryBusy(Exception):
+    pass
+
+
+class TelemetryConsentRequired(Exception):
+    pass
+
+
+class ReadTelemetryRequest(StrictModel):
+    vendor_tools_closed: bool
+
+
+class _ObservedFields(StrictModel):
+    battery_percent: int = Field(ge=0, le=100)
+    charging: bool
+    mouse_firmware_candidate: str | None = Field(pattern=r"^[0-9]+\.[0-9a-f]{2}$")
+
+
+class _ProbeResult(StrictModel):
+    status: Literal["candidate_read_replies_observed"]
+    usb_id: Literal["3710:5406"]
+    device_model_verified: Literal[False]
+    adapter_enabled: Literal[False]
+    observed: _ObservedFields
+    ownership_basis: Literal["operator_closed_vendor_tools_and_visible_handles_checked"]
+
+
+class TelemetrySnapshot(StrictModel):
+    device_id: Literal["pulsar_susanto_x"] = "pulsar_susanto_x"
+    battery_percent: int = Field(ge=0, le=100)
+    charging: bool
+    firmware_version: str | None = Field(pattern=r"^[0-9]+\.[0-9a-f]{2}$")
+    recorded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+def read_pulsar_snapshot() -> TelemetrySnapshot:
+    """Run the fixed diagnostic once. Never retry after an uncertain result."""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "pcc.diagnostics.pulsar_probe", "--execute", "--vendor-tools-closed"],
+            cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True,
+            timeout=10, check=False,
+        )
+        if result.returncode != 0 or len(result.stdout) > 8192:
+            raise TelemetryUnavailable("Battery/firmware read was not confirmed.")
+        reading = _ProbeResult.model_validate_json(result.stdout).observed
+        return TelemetrySnapshot(battery_percent=reading.battery_percent, charging=reading.charging, firmware_version=reading.mouse_firmware_candidate)
+    except (OSError, subprocess.TimeoutExpired, ValidationError):
+        raise TelemetryUnavailable("Battery/firmware read was not confirmed.") from None
+
+
+class TelemetryService:
+    def __init__(self, reader: Callable[[], TelemetrySnapshot] = read_pulsar_snapshot) -> None:
+        self._reader = reader
+        self._snapshot: TelemetrySnapshot | None = None
+        self._state_lock = threading.Lock()
+        self._operation_lock = threading.Lock()
+
+    def summaries(self) -> list[DeviceSummary]:
+        devices = registry.discover_devices()
+        with self._state_lock:
+            for device in devices:
+                if device.id != "pulsar_susanto_x":
+                    continue
+                if device.status == "offline":
+                    self._snapshot = None
+                elif self._snapshot is not None:
+                    device.battery_percent = self._snapshot.battery_percent
+                    device.firmware_version = self._snapshot.firmware_version
+                    device.telemetry_updated_at = self._snapshot.recorded_at
+        return devices
+
+    def read(self, *, vendor_tools_closed: bool) -> TelemetrySnapshot:
+        if vendor_tools_closed is not True:
+            raise TelemetryConsentRequired("Close other device-control tools before reading.")
+        if not self._operation_lock.acquire(blocking=False):
+            raise TelemetryBusy("A hardware read is already running.")
+        try:
+            devices = registry.discover_devices()
+            if not any(device.id == "pulsar_susanto_x" and device.status == "receiver_detected" for device in devices):
+                raise TelemetryUnavailable("Receiver is not detected.")
+            snapshot = self._reader()
+            with self._state_lock:
+                self._snapshot = snapshot
+            return snapshot
+        except (TelemetryUnavailable, OSError):
+            with self._state_lock:
+                self._snapshot = None
+            raise TelemetryUnavailable("Battery/firmware read was not confirmed.") from None
+        finally:
+            self._operation_lock.release()

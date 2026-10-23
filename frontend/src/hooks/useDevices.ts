@@ -15,9 +15,10 @@ export function useDevices() {
     devices: null, error: null, refreshing: true, lastChecked: null, disconnected: [],
   });
   const inFlight = useRef<AbortController | null>(null);
+  const queued = useRef(false);
 
-  const refresh = useCallback(async () => {
-    if (inFlight.current) return;
+  const refresh = useCallback(async (): Promise<void> => {
+    if (inFlight.current) { queued.current = true; return; }
     const controller = new AbortController();
     inFlight.current = controller;
     let timedOut = false;
@@ -45,7 +46,10 @@ export function useDevices() {
       }));
     } finally {
       window.clearTimeout(timeout);
-      if (inFlight.current === controller) inFlight.current = null;
+      if (inFlight.current === controller) {
+        inFlight.current = null;
+        if (queued.current) { queued.current = false; void refresh(); }
+      }
     }
   }, []);
 
@@ -54,6 +58,7 @@ export function useDevices() {
     const interval = window.setInterval(() => { void refresh(); }, 15_000);
     return () => {
       window.clearInterval(interval);
+      queued.current = false;
       inFlight.current?.abort();
       inFlight.current = null;
     };

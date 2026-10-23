@@ -1,5 +1,6 @@
 import type { Device, DeviceCapabilities } from '../types';
 import { DeviceMetrics, DeviceStatus } from './DeviceCard';
+import { TelemetryControls } from './TelemetryControls';
 
 const capabilities: [keyof DeviceCapabilities, string][] = [
   ['usb_discovery', 'USB discovery'], ['battery_read', 'Battery reading'],
@@ -7,7 +8,7 @@ const capabilities: [keyof DeviceCapabilities, string][] = [
   ['firmware_read', 'Firmware version reading'], ['settings_write', 'Settings changes'],
 ];
 
-export function DeviceDetails({ device, stale }: { device: Device; stale: boolean }) {
+export function DeviceDetails({ device, stale, onTelemetryRead }: { device: Device; stale: boolean; onTelemetryRead?: () => Promise<void> }) {
   const { connection } = device;
   return (
     <div className="device-details">
@@ -24,9 +25,11 @@ export function DeviceDetails({ device, stale }: { device: Device; stale: boolea
       </section>
       <section className="panel" aria-labelledby="telemetry-title">
         <h2 id="telemetry-title">Telemetry</h2>
-        <p className="device-note">Values stay unavailable until a validated live read is implemented.</p>
+        <p className="device-note">{device.capabilities.battery_read || device.capabilities.firmware_read ? 'Battery and firmware update only on request. Unsupported readings stay unavailable.' : 'Values stay unavailable until a validated live read is implemented.'}</p>
         <DeviceMetrics device={device} />
         <dl className="facts"><div><dt>Firmware version</dt><dd>{device.firmware_version ?? '—'}</dd></div></dl>
+        {device.telemetry_updated_at && <p className="device-note">Last hardware read: {new Date(device.telemetry_updated_at).toLocaleString()}</p>}
+        {onTelemetryRead && device.id === 'pulsar_susanto_x' && device.capabilities.battery_read && device.capabilities.firmware_read && <TelemetryControls device={device} stale={stale} onUpdated={onTelemetryRead} />}
       </section>
       <section className="panel capabilities" aria-labelledby="capabilities-title">
         <h2 id="capabilities-title">Adapter support</h2>

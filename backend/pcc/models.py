@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -33,9 +34,10 @@ class DeviceSummary(BaseModel):
     dpi: int | None = None
     polling_rate_hz: int | None = None
     firmware_version: str | None = None
+    telemetry_updated_at: datetime | None = None
     capabilities: DeviceCapabilities = Field(default_factory=DeviceCapabilities)
     connection: DeviceConnection = Field(default_factory=DeviceConnection)
-    driver_state: Literal["not_implemented"] = "not_implemented"
+    driver_state: Literal["not_implemented", "read_only"] = "not_implemented"
     note: str
 
 

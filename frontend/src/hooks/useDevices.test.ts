@@ -53,4 +53,17 @@ describe('device refresh lifecycle', () => {
     await vi.advanceTimersByTimeAsync(30_000);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it('queues a fresh enumeration after an existing request when manual telemetry finishes', async () => {
+    let finish!: (response: Response) => void;
+    const pending = new Promise<Response>((resolve) => { finish = resolve; });
+    const fetchMock = vi.fn().mockReturnValueOnce(pending).mockImplementation(async () => deviceResponse());
+    vi.stubGlobal('fetch', fetchMock);
+    const { result } = renderHook(() => useDevices());
+    await act(async () => { await result.current.refresh(); });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await act(async () => { finish(deviceResponse()); });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.current.devices).toHaveLength(2);
+  });
 });

@@ -26,7 +26,9 @@ function isDevice(value: unknown): value is Device {
     && isNullableNumber(value.dpi)
     && isNullableNumber(value.polling_rate_hz)
     && (value.firmware_version === null || typeof value.firmware_version === 'string')
-    && value.driver_state === 'not_implemented'
+    && (value.telemetry_updated_at === null || (typeof value.telemetry_updated_at === 'string'
+      && /^\d{4}-\d{2}-\d{2}T/.test(value.telemetry_updated_at) && Number.isFinite(Date.parse(value.telemetry_updated_at))))
+    && (value.driver_state === 'not_implemented' || value.driver_state === 'read_only')
     && typeof value.note === 'string'
     && capabilityKeys.every((key) => typeof capabilities[key] === 'boolean')
     && connection.source === 'usb_enumeration'

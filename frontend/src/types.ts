@@ -17,7 +17,8 @@ export type Device = {
   dpi: number | null;
   polling_rate_hz: number | null;
   firmware_version: string | null;
-  driver_state: 'not_implemented';
+  telemetry_updated_at: string | null;
+  driver_state: 'not_implemented' | 'read_only';
   note: string;
   capabilities: DeviceCapabilities;
   connection: {
@@ -26,4 +27,12 @@ export type Device = {
     receiver_usb_present: boolean;
     wireless_link_verified: boolean | null;
   };
+};
+
+export type TelemetrySnapshot = {
+  device_id: 'pulsar_susanto_x';
+  battery_percent: number;
+  charging: boolean;
+  firmware_version: string | null;
+  recorded_at: string;
 };
