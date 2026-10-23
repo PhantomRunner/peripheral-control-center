@@ -80,19 +80,61 @@ class ConfigHidraw:
     def __init__(self, opened: HidrawProbe):
         self._opened = opened
         self.sent = 0
+        self.completed = 0
+        self.last_query: ConfigQuery | None = None
+        self.phase = "preflight"
+        self.reply_diagnostics: dict[str, int | bool] = {}
 
     def exchange(self, query: ConfigQuery) -> Reply:
         packet = query_packet(query)
         if self.sent >= 12:
             raise ProbeBlocked("Current-settings output budget exhausted.")
+        self.last_query = query
+        self.phase = "preflight"
+        self.reply_diagnostics = {"reports_received": 0, "matching_command_reports": 0,
+                                  "bad_checksum_reports": 0, "nonzero_status_reports": 0}
         self._opened.target.verify_cached_identity()
         check_competitors(self._opened.numbers)
+        self.phase = "write"
         self.sent += 1
         if os.write(self._opened.descriptor, packet) != len(packet):
             raise ProbeBlocked("Incomplete query output; no retry will be sent.")
+        self.completed += 1
+        self.phase = "receive"
         command, address, length = query.value
         expected = ExpectedReply(command, address, length) if address is not None else ExpectedReply(command)
-        return receive_reply(self._opened, expected, timeout_seconds=0.5, max_reports=32)
+        result = receive_reply(self, expected, timeout_seconds=0.5, max_reports=32)
+        self.phase = "decode"
+        return result
+
+    def read_report(self, timeout_seconds: float) -> bytes:
+        packet = self._opened.read_report(timeout_seconds)
+        details = self.reply_diagnostics
+        details["reports_received"] += 1
+        if (self.last_query is not None and len(packet) == 17
+                and packet[0] == 8 and packet[1] == self.last_query.value[0]):
+            details["matching_command_reports"] += 1
+            details["last_payload_length"] = packet[5]
+            if sum(packet) & 255 != 0x55:
+                details["bad_checksum_reports"] += 1
+            elif packet[2] != 0:
+                details["nonzero_status_reports"] += 1
+            elif self.last_query is ConfigQuery.IDENTITY:
+                # Boolean projection only: never disclose nonce/unused identity bytes.
+                details["expected_identity_fields_present"] = packet[10:13] == bytes((0x57, 0x27, 5))
+            elif self.last_query.value[1] is not None:
+                details["memory_echo_matches"] = (
+                    int.from_bytes(packet[3:5], "big") == self.last_query.value[1]
+                    and packet[5] == self.last_query.value[2]
+                )
+        return packet
+
+    def failure_summary(self) -> dict:
+        return {
+            "last_query": self.last_query.name.lower() if self.last_query is not None else None,
+            "phase": self.phase, "output_reports_attempted": self.sent,
+            "output_reports_completed": self.completed, "reply_diagnostics": dict(self.reply_diagnostics),
+        }
 
 
 def _identity(reply: Reply) -> tuple[int, int, int]:
@@ -154,10 +196,13 @@ def main(argv: list[str] | None = None) -> int:
     if not args.vendor_tools_closed:
         print(json.dumps({"status": "blocked", "detail": "Close competing control tools and confirm closure first."}))
         return 2
+    transport: ConfigHidraw | None = None
+    phase = "discovery"
     try:
         if os.geteuid() == 0:
             raise ProbeBlocked("Do not run this diagnostic as root.")
         target = discover_target()
+        phase = "open"
         with process_deadline(), open_probe(target, vendor_tools_closed=True) as opened:
             transport = ConfigHidraw(opened)
             result = observe(transport)
@@ -166,9 +211,19 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, indent=2))
         return 0
     except ProbeBlocked as error:
-        print(json.dumps({"status": "blocked", "detail": str(error)}))
-    except (OSError, ValueError, InvalidReply, ReplyTimeout, DeviceBusyError, OwnershipUnavailableError):
-        print(json.dumps({"status": "blocked", "detail": "Current-settings query was not confirmed; no retry or settings command was sent."}))
+        failure = {"status": "blocked", "failure_kind": "safety_check", "detail": str(error)}
+    except (OSError, ValueError, InvalidReply, ReplyTimeout, DeviceBusyError, OwnershipUnavailableError) as error:
+        kind = ("reply_timeout" if isinstance(error, ReplyTimeout) else
+                "invalid_reply" if isinstance(error, InvalidReply) else
+                "permission_denied" if isinstance(error, PermissionError) else
+                "io_error" if isinstance(error, OSError) else
+                "ownership" if isinstance(error, (DeviceBusyError, OwnershipUnavailableError)) else "invalid_metadata")
+        failure = {"status": "blocked", "failure_kind": kind,
+                   "detail": "Current-settings query was not confirmed; no retry or settings command was sent."}
+    failure["diagnostics"] = transport.failure_summary() if transport is not None else {
+        "last_query": None, "phase": phase, "output_reports_attempted": 0, "output_reports_completed": 0,
+    }
+    print(json.dumps(failure))
     return 2
 
 

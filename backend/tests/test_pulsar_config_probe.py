@@ -2,6 +2,7 @@
 
 import json
 from collections import Counter
+from contextlib import nullcontext
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -169,3 +170,57 @@ def test_discovery_error_redacts_paths_and_never_opens_hid(monkeypatch, capsys):
     assert probe.main(["--execute", "--vendor-tools-closed"]) == 2
     assert "private" not in capsys.readouterr().out
     opened.assert_not_called()
+
+
+def framed_identity(*, length=8, status=0, checksum_valid=True):
+    packet = bytearray.fromhex("08 01 00 00 00 08 13 57 9b df 57 27 05 00 00 00 00")
+    packet[2], packet[5] = status, length
+    packet[-1] = (0x55 - sum(packet[:-1])) & 255
+    if not checksum_valid:
+        packet[-1] ^= 1
+    return bytes(packet)
+
+
+@pytest.mark.parametrize(("packet", "kind", "phase", "details"), [
+    (None, "reply_timeout", "receive", {"reports_received": 0, "matching_command_reports": 0}),
+    (framed_identity(length=0), "invalid_reply", "decode", {"last_payload_length": 0, "expected_identity_fields_present": True}),
+    (framed_identity(status=1), "reply_timeout", "receive", {"nonzero_status_reports": 1}),
+    (framed_identity(checksum_valid=False), "reply_timeout", "receive", {"bad_checksum_reports": 1}),
+    (framed_identity(length=11), "reply_timeout", "receive", {"last_payload_length": 11}),
+])
+def test_cli_failure_reports_stage_counts_and_safe_reply_metadata_without_retry(monkeypatch, capsys, packet, kind, phase, details):
+    reader = Mock(side_effect=[packet, TimeoutError()] if packet is not None else TimeoutError())
+    opened = SimpleNamespace(descriptor=99, target=SimpleNamespace(verify_cached_identity=Mock()),
+                             numbers=frozenset({42}), read_report=reader)
+    monkeypatch.setattr(probe.os, "geteuid", lambda: 1000)
+    monkeypatch.setattr(probe, "discover_target", lambda: object())
+    monkeypatch.setattr(probe, "open_probe", lambda *args, **kwargs: nullcontext(opened))
+    monkeypatch.setattr(probe, "process_deadline", nullcontext)
+    monkeypatch.setattr(probe, "check_competitors", Mock())
+    write = Mock(return_value=17)
+    monkeypatch.setattr(probe.os, "write", write)
+    assert probe.main(["--execute", "--vendor-tools-closed"]) == 2
+    text = capsys.readouterr().out
+    result = json.loads(text)
+    assert result["failure_kind"] == kind
+    diagnostic = result["diagnostics"]
+    assert diagnostic["last_query"] == "identity" and diagnostic["phase"] == phase
+    assert diagnostic["output_reports_attempted"] == diagnostic["output_reports_completed"] == 1
+    assert all(diagnostic["reply_diagnostics"][key] == value for key, value in details.items())
+    assert "13 57 9b df" not in text and "13579bdf" not in text
+    assert "cid" not in text and "payload_hex" not in text
+    write.assert_called_once()
+
+
+@pytest.mark.parametrize("error", [PermissionError("/private/machine/serial"), OSError("/private/machine/serial")])
+def test_open_failure_is_distinct_from_a_failed_query_and_has_no_outputs(monkeypatch, capsys, error):
+    monkeypatch.setattr(probe.os, "geteuid", lambda: 1000)
+    monkeypatch.setattr(probe, "discover_target", lambda: object())
+    monkeypatch.setattr(probe, "open_probe", Mock(side_effect=error))
+    monkeypatch.setattr(probe, "process_deadline", nullcontext)
+    assert probe.main(["--execute", "--vendor-tools-closed"]) == 2
+    text = capsys.readouterr().out
+    result = json.loads(text)
+    assert result["failure_kind"] == ("permission_denied" if isinstance(error, PermissionError) else "io_error")
+    assert result["diagnostics"] == {"phase": "open", "last_query": None, "output_reports_attempted": 0, "output_reports_completed": 0}
+    assert "private" not in text and "serial" not in text
