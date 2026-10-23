@@ -18,3 +18,20 @@ describe('polling Apply readback', () => {
     await expect(new SettingsClient().apply('pulsar_susanto_x', desired)).rejects.toThrow('Readback differs');
   });
 });
+
+describe('RGB Apply readback', () => {
+  it('compares RGB values semantically, ignoring color case and property order', async () => {
+    const desired = { kind: 'keyboard' as const, rgb: { mode: 'static' as const, color: '#AABBCC', brightness_percent: 60 } };
+    const actual = { kind: 'keyboard', rgb: { brightness_percent: 60, color: '#aabbcc', mode: 'static' } };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(Response.json({ token: 'a'.repeat(43), expires_in_seconds: 1800 }))
+      .mockResolvedValueOnce(Response.json({ device_id: 'ajazz_ak820_pro', status: 'verified', settings: actual })));
+    expect(await new SettingsClient().apply('ajazz_ak820_pro', desired)).toEqual(actual);
+  });
+
+  it('does not treat an acknowledgement as settings readback', async () => {
+    const desired = { kind: 'keyboard' as const, rgb: { mode: 'static' as const, color: '#112233', brightness_percent: 60 } };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(Response.json({ token: 'a'.repeat(43), expires_in_seconds: 1800 }))
+      .mockResolvedValueOnce(Response.json({ device_id: 'ajazz_ak820_pro', status: 'acknowledged', command: 0x13 })));
+    await expect(new SettingsClient().apply('ajazz_ak820_pro', desired)).rejects.toThrow('No valid readback confirmation');
+  });
+});

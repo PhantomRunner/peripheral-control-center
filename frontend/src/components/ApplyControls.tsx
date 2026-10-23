@@ -11,7 +11,8 @@ export function ApplyControls({ device, desired, stale, busy, onBusy }: {
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => { setResult(null); }, [desired, device.id]);
-  const unavailable = !device.capabilities.settings_write || stale || device.status === 'offline';
+  const wiredRequired = device.kind === 'keyboard' && !device.connection.wired_usb_present;
+  const unavailable = !device.capabilities.settings_write || stale || device.status === 'offline' || wiredRequired;
 
   const apply = async () => {
     if (unavailable || busy) return;
@@ -29,6 +30,7 @@ export function ApplyControls({ device, desired, stale, busy, onBusy }: {
     <p className="device-note">{!device.capabilities.settings_write ? 'Hardware Apply is unavailable until the adapter is validated for this device.'
       : stale ? 'Refresh the backend connection before applying settings.'
       : device.status === 'offline' ? 'Connect the device before applying settings.'
+      : wiredRequired ? 'Connect the keyboard by USB before applying RGB settings.'
       : 'Only pressing Apply changes device settings. Saving or loading a profile does not apply it.'}</p>
     {result && <p className={result.error ? 'error' : 'profile-notice'} role={result.error ? 'alert' : 'status'}>{result.message}</p>}
   </div>;

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ApplyControls } from './ApplyControls';
-import { mouse } from '../test/fixtures';
+import { keyboard, mouse } from '../test/fixtures';
 import type { Device } from '../types';
 
 const desired = { kind: 'mouse' as const, dpi: 800, polling_rate_hz: null };
@@ -40,5 +40,12 @@ describe('explicit hardware Apply', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Apply settings' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Readback differs');
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('blocks receiver-only keyboards even if an adapter advertises settings support', () => {
+    const receiver = { ...keyboard, status: 'receiver_detected' as const, connection: { ...keyboard.connection, wired_usb_present: false }, capabilities: { ...keyboard.capabilities, settings_write: true } };
+    render(<ApplyControls device={receiver} desired={{ kind: 'keyboard', rgb: { mode: 'static', color: '#112233', brightness_percent: 60 } }} stale={false} busy={false} onBusy={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Apply settings' })).toBeDisabled();
+    expect(screen.getByText('Connect the keyboard by USB before applying RGB settings.')).toBeVisible();
   });
 });

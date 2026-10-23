@@ -39,6 +39,11 @@ class RgbSettings(StrictModel):
     color: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
     brightness_percent: int = Field(ge=0, le=100)
 
+    @field_validator("color")
+    @classmethod
+    def normalized_color(cls, value: str) -> str:
+        return value.lower()
+
 
 class KeyboardSettings(StrictModel):
     kind: Literal["keyboard"]

@@ -26,7 +26,9 @@ export class SettingsClient {
     if (actual.kind !== desired.kind
       || (desired.kind === 'mouse' && (actual.kind !== 'mouse' || (desired.dpi !== null && actual.dpi !== desired.dpi)
         || (desired.polling_rate_hz !== null && actual.polling_rate_hz !== desired.polling_rate_hz)))
-      || (desired.kind === 'keyboard' && (actual.kind !== 'keyboard' || JSON.stringify(actual.rgb) !== JSON.stringify(desired.rgb)))) {
+      || (desired.kind === 'keyboard' && (actual.kind !== 'keyboard' || actual.rgb.mode !== desired.rgb.mode
+        || actual.rgb.color.toLowerCase() !== desired.rgb.color.toLowerCase()
+        || actual.rgb.brightness_percent !== desired.rgb.brightness_percent))) {
       throw new Error('Readback differs from the requested settings. Device state may have changed.');
     }
     return actual;
