@@ -1,107 +1,70 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { DeviceCard } from './components/DeviceCard';
+import { DeviceDetails } from './components/DeviceDetails';
+import { useDevices } from './hooks/useDevices';
 
-type Device = {
-  id: string;
-  name: string;
-  kind: 'mouse' | 'keyboard';
-  status: 'offline' | 'receiver_detected' | 'wired_detected';
-  connected_usb_ids: string[];
-  battery_percent: number | null;
-  dpi: number | null;
-  polling_rate_hz: number | null;
-  driver_state: 'not_implemented';
-  note: string;
-};
-
-type DevicesResponse = { devices: Device[] };
-
-const statusLabels: Record<Device['status'], string> = {
-  offline: 'Not detected',
-  receiver_detected: 'USB receiver detected',
-  wired_detected: 'USB wired detected',
-};
-
-function DeviceCard({ device }: { device: Device }) {
-  const active = device.status !== 'offline';
-  return (
-    <article className="device-card">
-      <div className="card-top">
-        <div className="device-icon" aria-hidden="true">{device.kind === 'mouse' ? '◉' : '⌨'}</div>
-        <span className={`pill ${active ? 'online' : 'offline'}`}>
-          <span className="status-dot" />{statusLabels[device.status]}
-        </span>
-      </div>
-      <div className="device-name">{device.name}</div>
-      <div className="device-type">{device.kind === 'mouse' ? 'Gaming mouse' : 'Mechanical keyboard'}</div>
-      <p className="device-note">{device.note}</p>
-      <div className="divider" />
-      <div className="metric-grid">
-        <div><span className="metric-label">Battery</span><strong>{device.battery_percent === null ? '—' : `${device.battery_percent}%`}</strong></div>
-        <div><span className="metric-label">Polling</span><strong>{device.polling_rate_hz === null ? '—' : `${device.polling_rate_hz} Hz`}</strong></div>
-        <div><span className="metric-label">DPI</span><strong>{device.dpi === null ? '—' : device.dpi}</strong></div>
-      </div>
-      <div className="card-footer">
-        <div className="usb-ids">{device.connected_usb_ids.length ? device.connected_usb_ids.join(' · ') : 'No USB ID detected'}</div>
-        <span className="read-only">Read-only discovery</span>
-      </div>
-    </article>
-  );
+function getDeviceId(hash: string): string | null {
+  if (!hash || hash === '#' || hash === '#/') return null;
+  try {
+    return hash.startsWith('#/devices/') ? decodeURIComponent(hash.slice(10)) : '';
+  } catch {
+    return '';
+  }
 }
 
 export default function App() {
-  const [devices, setDevices] = useState<Device[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [lastChecked, setLastChecked] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      const response = await fetch('/api/devices', { cache: 'no-store' });
-      if (!response.ok) throw new Error(`Backend returned HTTP ${response.status}`);
-      const data = (await response.json()) as DevicesResponse;
-      if (!Array.isArray(data.devices)) throw new Error('Unexpected API response');
-      setDevices(data.devices);
-      setError(null);
-      setLastChecked(new Date().toLocaleTimeString());
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Cannot reach local backend');
-    } finally {
-      setRefreshing(false);
-    }
-  }, []);
-
+  const { devices, error, refreshing, lastChecked, disconnected, stale, refresh } = useDevices();
+  const [hash, setHash] = useState(window.location.hash);
+  const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
-    void refresh();
-    const interval = setInterval(() => { void refresh(); }, 15_000);
-    return () => clearInterval(interval);
-  }, [refresh]);
+    const navigate = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', navigate);
+    return () => window.removeEventListener('hashchange', navigate);
+  }, []);
+  useEffect(() => {
+    heading.current?.focus();
+  }, [hash]);
 
-  const detected = devices?.filter((device) => device.status !== 'offline').length ?? 0;
+  const deviceId = getDeviceId(hash);
+  const selected = devices?.find((device) => device.id === deviceId);
+  const detail = deviceId !== null;
+  const title = detail ? selected?.name ?? (devices ? 'Device not found' : 'Device details') : 'Your peripherals';
+  const detected = devices?.filter((device) => device.status !== 'offline').length;
   return (
     <div className="layout">
+      <a className="skip-link" href="#main" onClick={(event) => { event.preventDefault(); document.getElementById('main')?.focus(); }}>Skip to content</a>
       <aside className="sidebar">
-        <div className="logo"><span className="logo-mark">P</span><span>PCC <small>Local</small></span></div>
-        <div className="nav-section">WORKSPACE</div>
-        <div className="nav-item selected">▦ <span>Dashboard</span></div>
-        <div className="nav-item disabled">◫ <span>Profiles <small>later</small></span></div>
-        <div className="nav-item disabled">⚙ <span>Preferences <small>later</small></span></div>
-        <div className="side-bottom"><span className="status-dot" /> Local mode<br/><small>Only this computer can access the API.</small></div>
+        <a className="logo" href="#/" aria-label="PCC home"><span className="logo-mark">P</span><span>PCC <small>Local</small></span></a>
+        <nav aria-label="Main navigation">
+          <div className="nav-section">WORKSPACE</div>
+          <a className={`nav-item ${!detail ? 'selected' : ''}`} href="#/" aria-current={!detail ? 'page' : undefined}>▦ <span>Dashboard</span></a>
+          {(devices ?? []).map((device) => <a key={device.id} className={`nav-item ${selected?.id === device.id ? 'selected' : ''}`} href={`#/devices/${encodeURIComponent(device.id)}`} aria-current={selected?.id === device.id ? 'page' : undefined}>{device.kind === 'mouse' ? '◉' : '⌨'} <span>{device.name}</span></a>)}
+        </nav>
+        <div className="side-bottom">Local mode<small>Read-only USB discovery</small></div>
       </aside>
-      <main className="content">
+      <main id="main" className="content" tabIndex={-1}>
         <header className="page-header">
-          <div><div className="eyebrow">CONTROL PANEL / OVERVIEW</div><h1>Your peripherals<span>.</span></h1><p>One workspace. Every device. No vendor lock-in.</p></div>
-          <button className="refresh" onClick={() => { void refresh(); }} disabled={refreshing}>{refreshing ? 'Checking…' : '↻ Refresh'}</button>
+          <div><div className="eyebrow">CONTROL PANEL / {detail ? 'DEVICE DETAILS' : 'OVERVIEW'}</div><h1 ref={heading} tabIndex={-1}>{title}<span>.</span></h1><p>{detail ? 'USB presence, telemetry and adapter support.' : 'One workspace. Every device. No vendor lock-in.'}</p></div>
+          <button className="refresh" onClick={() => { void refresh(); }} disabled={refreshing}>{refreshing ? 'Checking…' : error ? 'Retry connection' : '↻ Refresh'}</button>
         </header>
-        <section className="summary">
+        {detail && <a className="back-link" href="#/">← All devices</a>}
+        {!detail && <section className="summary" aria-label="Device overview">
           <div><div className="summary-label">Known devices</div><strong>{devices?.length ?? '—'}</strong></div>
-          <div><div className="summary-label">USB hardware detected</div><strong>{devices ? detected : '—'}</strong></div>
-          <div><div className="summary-label">Driver support</div><strong className="coming">Coming next</strong></div>
-        </section>
-        <div className="section-title"><h2>Devices</h2><span>{lastChecked ? `Last scan ${lastChecked}` : 'Waiting for backend'}</span></div>
-        {error && <div className="error" role="alert">Backend unavailable: {error}. Start FastAPI on 127.0.0.1:8000 and refresh.</div>}
-        {devices ? <section className="devices">{devices.map((device) => <DeviceCard key={device.id} device={device} />)}</section> : <p className="loading">Loading devices from the local API…</p>}
-        <section className="notice"><span className="notice-icon">i</span><div><strong>Hardware-safe mode</strong><p>This starter detects USB IDs only. It does not read battery, change DPI, send RGB commands, or modify firmware. A detected dongle does not prove its wireless device is awake.</p></div></section>
+          <div><div className="summary-label">USB hardware detected</div><strong>{stale ? '—' : detected ?? '—'}</strong></div>
+          <div><div className="summary-label">Adapter mode</div><strong className="coming">USB discovery</strong></div>
+        </section>}
+        <div className="section-title"><h2>{detail ? 'Device status' : 'Devices'}</h2><span>{lastChecked ? `${stale ? 'Last successful scan' : 'Last scan'} ${lastChecked.toLocaleTimeString()}` : 'Waiting for backend'}</span></div>
+        {error && <div className="error" role="alert"><strong>Backend unavailable.</strong> {error} {stale ? 'Showing last known data; current USB presence is unknown.' : 'Start the local backend and retry.'}</div>}
+        {stale && <p className="stale-label" role="status">Last known data · connection and readings may be outdated.</p>}
+        {!stale && disconnected.length > 0 && <p className="disconnect" role="status">USB disconnected since last scan: {disconnected.join(', ')}.</p>}
+        {devices === null ? (
+          !error && <div className="empty-state" role="status"><span className="loading-dot" aria-hidden="true" /><h3>Checking USB devices</h3><p>Loading devices from the local API…</p></div>
+        ) : detail ? (
+          selected ? <DeviceDetails device={selected} stale={stale} /> : <div className="empty-state"><h3>Device not found</h3><p>This device is not registered. Choose a device from the dashboard.</p><a href="#/">Go to dashboard</a></div>
+        ) : devices.length ? (
+          <section className="devices" aria-label="Known peripherals">{devices.map((device) => <DeviceCard key={device.id} device={device} stale={stale} />)}</section>
+        ) : <div className="empty-state"><h3>No registered devices</h3><p>The backend returned no known device adapters.</p></div>}
+        <section className="notice"><span className="notice-icon" aria-hidden="true">i</span><div><strong>Read-only discovery</strong><p>USB detection does not verify a wireless link. Battery, DPI, polling and firmware stay unavailable until validated reads are implemented.</p></div></section>
       </main>
     </div>
   );
