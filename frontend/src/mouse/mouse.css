@@ -1,4 +1,8 @@
 .mouse-status { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px; }
+.mouse-content { padding-top:36px; }
+.mouse-content h1 { font-size:clamp(28px,3vw,38px); }
+.mouse-content .back-link { margin:16px 0 20px; }
+.mouse-content .section-title { margin-bottom:10px; }
 .mouse-status > span { color:#b6acd9; font-size:11px; letter-spacing:.12em; }
 .mouse-tabs { display:flex; gap:8px; overflow-x:auto; padding:4px 4px 12px; margin-bottom:22px; border-bottom:1px solid #303748; }
 .mouse-tabs button { flex-shrink:0; border:0; border-radius:9px; background:transparent; color:#a6b2c8; padding:11px 16px; font:inherit; font-size:13px; cursor:pointer; }
@@ -23,4 +27,6 @@
 .mouse-stage-list strong { font-size:23px; }
 .mouse-stage-list :is(span,small) { font-size:11px; }
 .mouse-empty { padding:22px; border:1px dashed #46516a; border-radius:10px; color:#abb8ce; font-size:13px; }
+.mouse-legacy,.mouse-stage-notice { margin-top:20px; }
+.mouse-legacy summary { padding:18px 4px; color:#b8c2d6; font-size:12px; cursor:pointer; }
 @media (max-width:1050px) { .mouse-grid { grid-template-columns:1fr; } }

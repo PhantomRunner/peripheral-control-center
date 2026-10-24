@@ -1,4 +1,4 @@
-import { act,fireEvent, render, screen } from '@testing-library/react';
+import { act,fireEvent, render, screen,within } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { MouseWorkspace } from './MouseWorkspace';
 import { mouse } from '../test/fixtures';
@@ -31,6 +31,7 @@ it('shows observed stages, preserves drafts across tabs and requires separate wr
   const device={...mouse,performance_capabilities:performanceCaps};
   render(<MouseWorkspace device={device} stale={false} onUpdated={vi.fn()} />);
   await readPerformance();
+  expect(within(screen.getByRole('region',{name:'Mouse overview'})).getByText('800')).toBeVisible();
   expect(screen.getByRole('button',{name:'Stage 1 · active 800 DPI'})).toBeVisible();
   fireEvent.change(screen.getByLabelText('Selected stage DPI (draft)'),{target:{value:'1200'}});
   expect(screen.getByRole('button',{name:'Apply selected change'})).toBeDisabled();
