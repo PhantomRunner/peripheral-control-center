@@ -11,6 +11,7 @@ import { KeyMappingPanel } from './KeyMappingPanel';
 import type { KeyMapping } from './keyMapping';
 import { StudioSettingsPanel } from './StudioSettingsPanel';
 import { DEFAULT_PROFILE, type StudioProfile } from './studioProfile';
+import { useScreenTransfer } from './useScreenTransfer';
 import './studio.css';
 
 export function KeyboardWorkspace({ device, stale, onUpdated }: { device: Device; stale: boolean; onUpdated: () => Promise<void> }) {
@@ -22,6 +23,7 @@ export function KeyboardWorkspace({ device, stale, onUpdated }: { device: Device
   const [mappings, setMappings] = useState<KeyMapping[]>([]);
   const [standbyMinutes, setStandby] = useState(DEFAULT_PROFILE.standbyMinutes);
   const [clockIntervalMinutes, setClockInterval] = useState(DEFAULT_PROFILE.clockIntervalMinutes);
+  const transfer = useScreenTransfer();
   const profile: StudioProfile = { ...DEFAULT_PROFILE, lighting, screen, mappings, iso, standbyMinutes, clockIntervalMinutes };
   const loadProfile = (next: StudioProfile) => {
     setLighting(next.lighting); setScreen(next.screen); setMappings(next.mappings); setIso(next.iso);
@@ -43,7 +45,7 @@ export function KeyboardWorkspace({ device, stale, onUpdated }: { device: Device
     }}>{label}</button>)}</div>
     <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`}>
       {tab === 'lighting' && <LightingPanel device={device} stale={stale} draft={lighting} onChange={setLighting} iso={iso} onIso={setIso} onUpdated={onUpdated} />}
-      {tab === 'screen' && <ScreenPanel draft={screen} onChange={setScreen} source={source} onSource={setSource} />}
+      {tab === 'screen' && <ScreenPanel draft={screen} onChange={setScreen} source={source} onSource={setSource} device={device} stale={stale} transfer={transfer} />}
       {tab === 'keys' && <KeyMappingPanel mappings={mappings} onChange={setMappings} iso={iso} />}
       {tab === 'settings' && <StudioSettingsPanel profile={profile} onChange={loadProfile} device={device} stale={stale} onUpdated={onUpdated} />}
       {tab === 'device' && <><DeviceDetails device={device} stale={stale} onTelemetryRead={onUpdated} /><ProfilePanel device={device} stale={stale} onUpdated={onUpdated} /></>}

@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { compileScreen, loadScreenFile, screenPayload, textSource, type ScreenDraft, type ScreenFrame, type ScreenSource } from './screenMedia';
 import { download } from './download';
+import type { Device } from '../types';
+import { ScreenUploadControls, type ScreenTransfer } from './ScreenUploadControls';
 
-export function ScreenPanel({ draft, onChange, source, onSource }: {
+export function ScreenPanel({ draft, onChange, source, onSource, device, stale, transfer }: {
   draft: ScreenDraft; onChange: (value: ScreenDraft) => void; source: ScreenSource | null; onSource: (source: ScreenSource | null) => void;
+  device: Device; stale: boolean; transfer: ScreenTransfer;
 }) {
   const [frames, setFrames] = useState<ScreenFrame[]>([]);
   const [index, setIndex] = useState(0);
@@ -23,7 +26,7 @@ export function ScreenPanel({ draft, onChange, source, onSource }: {
       finally { setBusy(false); }
     }, 200);
     return () => window.clearTimeout(timer);
-  }, [source, draft]);
+  }, [source, draft.cropX, draft.cropY, draft.zoom, draft.dither, draft.maxFrames, draft.background]);
   useEffect(() => {
     const context = preview.current?.getContext('2d');
     context?.clearRect(0, 0, 128, 128);
@@ -62,21 +65,20 @@ export function ScreenPanel({ draft, onChange, source, onSource }: {
       {frames.length > 0 && <p className="studio-media-info">{frames.length} frame{frames.length !== 1 ? 's' : ''} · {(Math.ceil((256 + frames.length * 32768) / 4096) * 4096).toLocaleString()} bytes · frame {index + 1}</p>}
       {clipped && <p className="device-note">Device timing uses 2 ms steps and a maximum of 510 ms per frame. The preview uses those limits.</p>}
       <div className="profile-actions"><button className="secondary" type="button" disabled={frames.length < 2 || busy} onClick={() => setPlaying(!playing)}>{playing ? 'Pause animation' : 'Play animation'}</button><button className="secondary" type="button" disabled={!frames.length || busy} onClick={() => download('ak820-screen.rgb565', screenPayload(frames), 'application/octet-stream')}>Export screen data</button></div>
-      <button className="refresh" type="button" disabled>Send screen to keyboard</button>
-      <p className="device-note">Screen upload needs a separately validated transfer on this keyboard. Export and preview work without hardware access.</p>
+      <ScreenUploadControls device={device} stale={stale} frames={frames} preparing={busy} transfer={transfer} />
     </section>
     <section className="panel studio-form" aria-labelledby="screen-artwork-title">
       <div className="studio-kicker">CREATE</div><h2 id="screen-artwork-title">Screen artwork</h2>
       {error && <p role="alert" className="error">{error}</p>}
-      <label>Choose an image or GIF<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={busy} onChange={event => { void load(event.target.files?.[0]); event.target.value = ''; }} /></label>
+      <label>Choose an image or GIF<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={busy || transfer.busy} onChange={event => { void load(event.target.files?.[0]); event.target.value = ''; }} /></label>
       <p className="device-note">PNG, JPEG, WebP or GIF · up to 10 MiB / 120 frames. Files stay in this browser.</p>
-      <fieldset disabled={busy}>
+      <fieldset disabled={busy || transfer.busy}>
         <legend>Or write text</legend><label>Text artwork<textarea maxLength={200} rows={3} value={draft.text} placeholder="Hello|PCC" onChange={event => onChange({ ...draft, text: event.target.value })} /></label>
         <div className="studio-two-fields"><label>Text colour<input type="color" value={draft.textColor} onChange={event => onChange({ ...draft, textColor: event.target.value })} /></label><label>Background colour<input type="color" value={draft.background} onChange={event => onChange({ ...draft, background: event.target.value })} /></label></div>
         <label>Font size (0 = auto)<input type="number" min="0" max="64" value={draft.textSize} onChange={event => onChange({ ...draft, textSize: Math.max(0, Math.min(64, Math.round(Number(event.target.value)))) })} /></label>
         <button className="secondary" type="button" onClick={renderText}>Create text artwork</button>
       </fieldset>
-      <fieldset><legend>Crop & conversion</legend>
+      <fieldset disabled={transfer.busy}><legend>Crop & conversion</legend>
         {([['cropX', 'Horizontal offset', -100, 100], ['cropY', 'Vertical offset', -100, 100], ['zoom', 'Zoom', 100, 300]] as const).map(([key, label, min, max]) => <label key={key} className="studio-range">{label}<output>{draft[key]}{key === 'zoom' ? '%' : ''}</output><input aria-label={label} type="range" min={min} max={max} value={draft[key]} onChange={event => onChange({ ...draft, [key]: Number(event.target.value) })} /></label>)}
         <label className="tool-confirmation"><input type="checkbox" checked={draft.dither} onChange={event => onChange({ ...draft, dither: event.target.checked })} />Smooth gradients with dithering</label>
         <label>Frame limit<input type="number" min="1" max="120" value={draft.maxFrames} onChange={event => onChange({ ...draft, maxFrames: Math.max(1, Math.min(120, Math.round(Number(event.target.value)))) })} /></label>

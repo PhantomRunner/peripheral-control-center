@@ -3,6 +3,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { ScreenPanel } from './ScreenPanel';
 import { DEFAULT_SCREEN, type ScreenSource } from './screenMedia';
+import { keyboard } from '../test/fixtures';
+import { useScreenTransfer } from './useScreenTransfer';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -15,7 +17,8 @@ beforeEach(() => {
 
 function Editor() {
   const [draft, setDraft] = useState(DEFAULT_SCREEN), [source, setSource] = useState<ScreenSource | null>(null);
-  return <ScreenPanel draft={draft} onChange={setDraft} source={source} onSource={setSource} />;
+  const transfer = useScreenTransfer();
+  return <ScreenPanel draft={draft} onChange={setDraft} source={source} onSource={setSource} device={keyboard} stale={false} transfer={transfer} />;
 }
 
 it('renders text locally, exports converted data and never calls the hardware API', async () => {
