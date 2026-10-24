@@ -29,6 +29,7 @@ export default function App() {
 
   const deviceId = getDeviceId(hash);
   const selected = devices?.find((device) => device.id === deviceId);
+  const keyboardStudio=selected?.id==='ajazz_ak820_pro';
   const detail = deviceId !== null;
   const title = detail ? selected?.name ?? (devices ? 'Device not found' : 'Device details') : 'Your peripherals';
   const detected = devices?.filter((device) => device.status !== 'offline').length;
@@ -44,9 +45,9 @@ export default function App() {
         </nav>
         <div className="side-bottom">Local mode<small>Read-only USB discovery</small></div>
       </aside>
-      <main id="main" className="content" tabIndex={-1}>
+      <main id="main" className={`content${keyboardStudio?' keyboard-content':''}`} tabIndex={-1}>
         <header className="page-header">
-          <div><div className="eyebrow">CONTROL PANEL / {detail ? 'DEVICE DETAILS' : 'OVERVIEW'}</div><h1 ref={heading} tabIndex={-1}>{title}<span>.</span></h1><p>{detail ? 'USB presence, telemetry and adapter support.' : 'One workspace. Every device. No vendor lock-in.'}</p></div>
+          <div><div className="eyebrow">CONTROL PANEL / {keyboardStudio?'KEYBOARD STUDIO':detail ? 'DEVICE DETAILS' : 'OVERVIEW'}</div><h1 ref={heading} tabIndex={-1}>{title}<span>.</span></h1><p>{keyboardStudio?'Lighting, screen artwork and keyboard settings.':detail ? 'USB presence, telemetry and adapter support.' : 'One workspace. Every device. No vendor lock-in.'}</p></div>
           <button className="refresh" onClick={() => { void refresh(); }} disabled={refreshing}>{refreshing ? 'Checking…' : error ? 'Retry connection' : '↻ Refresh'}</button>
         </header>
         {detail && <a className="back-link" href="#/">← All devices</a>}
@@ -55,7 +56,7 @@ export default function App() {
           <div><div className="summary-label">USB hardware detected</div><strong>{stale ? '—' : detected ?? '—'}</strong></div>
           <div><div className="summary-label">Adapter mode</div><strong className="coming">USB discovery</strong></div>
         </section>}
-        <div className="section-title"><h2>{detail ? 'Device status' : 'Devices'}</h2><span>{lastChecked ? `${stale ? 'Last successful scan' : 'Last scan'} ${lastChecked.toLocaleTimeString()}` : 'Waiting for backend'}</span></div>
+        <div className="section-title"><h2>{keyboardStudio?'Keyboard workspace':detail ? 'Device status' : 'Devices'}</h2><span>{lastChecked ? `${stale ? 'Last successful scan' : 'Last scan'} ${lastChecked.toLocaleTimeString()}` : 'Waiting for backend'}</span></div>
         {error && <div className="error" role="alert"><strong>Backend unavailable.</strong> {error} {stale ? 'Showing last known data; current USB presence is unknown.' : 'Start the local backend and retry.'}</div>}
         {stale && <p className="stale-label" role="status">Last known data · connection and readings may be outdated.</p>}
         {!stale && disconnected.length > 0 && <p className="disconnect" role="status">USB disconnected since last scan: {disconnected.join(', ')}.</p>}

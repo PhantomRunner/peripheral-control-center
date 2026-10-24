@@ -1,5 +1,9 @@
 .keyboard-studio { --studio-accent: #a39aff; }
-.studio-status-bar { display: flex; justify-content: space-between; gap: 18px; align-items: center; padding: 5px 0 22px; }
+.keyboard-content { padding-top: 36px; }
+.keyboard-content h1 { font-size: clamp(28px,3vw,38px); }
+.keyboard-content .back-link { margin: 16px 0 20px; }
+.keyboard-content .section-title { margin-bottom: 10px; }
+.studio-status-bar { display: flex; justify-content: space-between; gap: 18px; align-items: center; padding: 4px 0 15px; }
 .studio-kicker, .studio-caption { color: #a9a2df; font-size: 10px; letter-spacing: .12em; font-weight: 750; }
 .studio-status-bar p { margin: 7px 0 0; color: #b1bdd2; font-size: 13px; }
 .studio-tabs { display: flex; gap: 8px; overflow-x: auto; border-bottom: 1px solid #303748; margin-bottom: 22px; padding: 4px 4px 12px; }

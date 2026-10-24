@@ -35,7 +35,7 @@ export function KeyboardWorkspace({ device, stale, onUpdated }: { device: Device
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   const tabs = [['lighting', 'Lighting'], ['screen', 'Screen'], ['keys', 'Key remapping'], ['settings', 'Settings'], ['device', 'Device & profiles']] as const;
   return <div className="keyboard-studio">
-    <div className="studio-status-bar"><div><span className="studio-kicker">KEYBOARD STUDIO</span><p>Your keyboard. Your workspace.</p></div><DeviceStatus device={device} stale={stale} /></div>
+    <div className="studio-status-bar"><span className="studio-kicker">AK820 PRO · WIRED CONTROL</span><DeviceStatus device={device} stale={stale} /></div>
     <div className="studio-tabs" role="tablist" aria-label="Keyboard studio">{tabs.map(([id, label], index) => <button key={id} ref={element => { buttons.current[index] = element; }} id={`${tabId}-${id}`} type="button" role="tab" aria-selected={tab === id} aria-controls={`${tabId}-panel`} tabIndex={tab === id ? 0 : -1} onClick={() => setTab(id)} onKeyDown={event => {
       let next = index;
       if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
