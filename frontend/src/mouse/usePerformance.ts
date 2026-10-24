@@ -27,6 +27,9 @@ export function usePerformance(device:Device,stale:boolean,onUpdated:()=>Promise
     }catch(cause){if(mounted.current && current.current.generation===generation){setSnapshot(null);setMessage({error:true,text:cause instanceof Error?cause.message:'Performance operation was not confirmed.'});}}
     finally{running.current=false;if(mounted.current){setBusy(false);await onUpdated();}}
   };
-  return {snapshot,busy,message,readEnabled,run,clear:()=>{setSnapshot(null);setMessage(null);},context};
+  return {snapshot,busy,message,readEnabled,run,clear:()=>{
+    current.current={...current.current,generation:current.current.generation+1};
+    setSnapshot(null);setMessage(null);
+  },context:JSON.stringify([context,generation])};
 }
 export type PerformanceState=ReturnType<typeof usePerformance>;

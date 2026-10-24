@@ -44,7 +44,7 @@ export function MouseWorkspace({ device, stale, onUpdated }: { device: Device; s
       </div>}
       {tab==='dpi'&&(performance.snapshot?<details className="mouse-legacy"><summary>Previously verified current-stage controls</summary>{legacy}</details>:<section className="panel mouse-stage-notice"><h2>DPI stages</h2><p className="device-note">Read the mouse to show its configured DPI stages. The stage editor requires a validated performance reader.</p></section>)}
       {tab === 'sensor' && <SensorPanel device={device} performance={performance} draft={sensorDraft} onChange={setSensorDraft} blocked={busy} />}
-      {tab === 'device' && <><DeviceDetails device={device} stale={stale} onTelemetryRead={onUpdated} /><ProfilePanel device={device} stale={stale} onUpdated={onUpdated} /></>}
+      {tab === 'device' && <><DeviceDetails device={device} stale={stale} onTelemetryRead={onUpdated} /><ProfilePanel device={device} stale={stale} onUpdated={async()=>{performance.clear();await onUpdated();}} /></>}
     </div>
   </div>;
 }
