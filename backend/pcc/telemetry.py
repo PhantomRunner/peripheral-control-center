@@ -10,6 +10,7 @@ import sys
 import threading
 import time
 from collections.abc import Callable
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
@@ -213,6 +214,24 @@ class TelemetryService:
         with self._state_lock:
             self._config_generation += 1
             self._config_snapshot = None
+
+    @contextmanager
+    def pulsar_operation(self):
+        """Serialize new performance operations with reads and reject stale completion."""
+        if not self._operation_lock.acquire(blocking=False):
+            raise TelemetryBusy('A hardware operation is already running.')
+        try:
+            connection = self._connection('pulsar_susanto_x')
+            with self._state_lock:
+                config_generation = self._config_generation
+            yield
+            self.summaries()
+            with self._state_lock:
+                self._same_connection('pulsar_susanto_x', connection)
+                if config_generation != self._config_generation:
+                    raise TelemetryUnavailable('Settings changed during the operation.')
+        finally:
+            self._operation_lock.release()
 
     def read_control(self, *, vendor_tools_closed: bool) -> ControlSnapshot:
         if vendor_tools_closed is not True:
