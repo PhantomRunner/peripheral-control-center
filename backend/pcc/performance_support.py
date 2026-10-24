@@ -1,12 +1,16 @@
 """Exact-PSSTX21 evidence gates. Never enable by environment or client flags."""
 
-from .performance_models import PerformanceAction, PerformanceCapabilities
+from .performance_models import PARAMETERS,ParameterCapability,PerformanceAction, PerformanceCapabilities
 
 
 def validated_capabilities() -> PerformanceCapabilities:
-    # Read and write experiments are pending. Codec/fake-test success is not
-    # device validation. Enable each parameter only with recorded exact evidence.
-    return PerformanceCapabilities()
+    # PSSTX21 / firmware 3.03, approved 2026-10-24: 38 read queries, two matching
+    # passes, zero settings writes. Redacted decoded evidence is retained in
+    # tests/fixtures/pulsar_performance_observation.json (not a wire capture).
+    # No write/value set is validated by a read-only observation.
+    return PerformanceCapabilities(snapshot_read=True,parameters={
+        name:ParameterCapability(read=True) for name in PARAMETERS
+    })
 
 
 def validate_action(action: PerformanceAction, capabilities: PerformanceCapabilities) -> None:

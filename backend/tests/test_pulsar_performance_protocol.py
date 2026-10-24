@@ -94,9 +94,9 @@ def test_apply_requires_context_and_defaults_to_no_consent():
     assert not body.vendor_tools_closed and not body.allow_device_memory_writes
 
 
-def test_discovery_never_advertises_unvalidated_performance_operations():
+def test_discovery_advertises_approved_performance_reads_but_no_new_writes():
     from pcc.drivers.pulsar import PulsarAdapter
     for presence in [set(), {'3710:5406'}]:
         caps = PulsarAdapter().get_summary(presence).performance_capabilities
-        assert caps is not None and caps.snapshot_read is False
-        assert all(not item.read and not item.write and not item.values for item in caps.parameters.values())
+        assert caps is not None and caps.snapshot_read is True
+        assert all(item.read and not item.write and not item.values for item in caps.parameters.values())

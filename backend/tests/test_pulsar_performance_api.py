@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -12,8 +13,10 @@ from pcc.performance_api import PerformanceService, get_performance_service
 from pcc.performance_models import DpiStage, ParameterCapability,PerformanceApplyRequest,PerformanceCapabilities, PerformanceSnapshot, SensorSnapshot
 from pcc.telemetry import TelemetryService
 from pcc.telemetry_api import get_telemetry_service
+from pcc.performance_support import validated_capabilities
 
 URL = '/api/devices/pulsar_susanto_x/performance/read'
+OBSERVATION=json.loads((Path(__file__).parent/'fixtures/pulsar_performance_observation.json').read_text())
 
 
 def snapshot():
@@ -87,6 +90,40 @@ def test_disconnect_or_intervening_apply_rejects_late_snapshot(api):
     reader.side_effect = changed
     assert client.post(URL,headers=headers,json={'vendor_tools_closed':True}).status_code == 503
     assert reader.call_count == 2
+
+
+def test_approved_observation_enables_explicit_production_reads_only(api):
+    client,headers,reader,_present,service,_telemetry=api
+    service.capabilities=validated_capabilities()
+    reading=PerformanceSnapshot.model_validate_json(json.dumps(OBSERVATION['result']['snapshot']))
+    reader.return_value=reading
+    service.writer=Mock(side_effect=AssertionError('Reads must never enable writes'))
+    discovery=client.get('/api/devices').json()['devices'][0]
+    assert discovery['performance_capabilities']['snapshot_read'] is True
+    assert all(p['read'] and not p['write'] and not p['values'] for p in discovery['performance_capabilities']['parameters'].values())
+    reader.assert_not_called()
+    assert discovery['dpi'] is discovery['firmware_version'] is None
+    assert client.post(URL,headers=headers,json={}).status_code==409
+    response=client.post(URL,headers=headers,json={'vendor_tools_closed':True})
+    assert response.status_code==200 and response.json()==reading.model_dump(mode='json')
+    assert [stage['x'] for stage in response.json()['stages']]==[400,800,1200,1800,3200]
+    reader.assert_called_once()
+    assert client.post(APPLY_URL,headers=headers,json=APPLY_BODY).status_code==409
+    service.writer.assert_not_called()
+    # Reading returns a timestamped snapshot, never invented discovery telemetry.
+    assert client.get('/api/devices').json()['devices'][0]['dpi'] is None
+
+
+def test_recorded_exact_device_observation_validates_without_hardware_replay(monkeypatch):
+    run=Mock(return_value=SimpleNamespace(returncode=0,stdout=json.dumps(OBSERVATION['result'])))
+    monkeypatch.setattr('pcc.drivers.pulsar_performance.subprocess.run',run)
+    actual=read_performance()
+    assert actual.active_profile_index==0 and actual.active_stage_index==2 and actual.stage_count==5
+    assert actual.sensor.debounce==2 and actual.sensor.lod==1.0
+    assert actual.sensor.rotation==0 and actual.sensor.rotation_enabled is False
+    assert OBSERVATION['settings_write_reports']==0 and OBSERVATION['raw_reports_included'] is False
+    assert OBSERVATION['elapsed_seconds']==1.044
+    run.assert_called_once()
 
 
 @pytest.mark.parametrize('bad', [None,'count','firmware','write','oversize'])

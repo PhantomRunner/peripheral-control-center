@@ -1,0 +1,65 @@
+{
+  "record_type": "redacted_live_observation_not_wire_capture",
+  "owner_reported_device": "Pulsar Susanto-X PSSTX21",
+  "usb_id": "3710:5406",
+  "descriptor_sha256": "655f29b1550cd7903311346991d3a5dc54988ab7326ac30cdd6284a784489c5e",
+  "operator_tools_closed": true,
+  "approval": "Owner approved the fixed read-only experiment and confirmed tool closure on 2026-10-24.",
+  "started_at": "2026-10-24T19:37:05.655580+00:00",
+  "elapsed_seconds": 1.044,
+  "retries": 0,
+  "settings_write_reports": 0,
+  "raw_reports_included": false,
+  "result": {
+    "status": "performance_observed",
+    "snapshot": {
+      "device_id": "pulsar_susanto_x",
+      "firmware_version": "3.03",
+      "active_profile_index": 0,
+      "stage_count": 5,
+      "active_stage_index": 2,
+      "stages": [
+        {
+          "index": 0,
+          "x": 400,
+          "y": 400
+        },
+        {
+          "index": 1,
+          "x": 800,
+          "y": 800
+        },
+        {
+          "index": 2,
+          "x": 1200,
+          "y": 1200
+        },
+        {
+          "index": 3,
+          "x": 1800,
+          "y": 1800
+        },
+        {
+          "index": 4,
+          "x": 3200,
+          "y": 3200
+        }
+      ],
+      "polling_rate_hz": 1000,
+      "sensor": {
+        "lod": 1.0,
+        "debounce": 2,
+        "motion_sync": false,
+        "angle_snap": false,
+        "ripple_control": false,
+        "turbo": false,
+        "rotation": 0,
+        "rotation_enabled": false
+      },
+      "recorded_at": "2026-10-24T19:37:06.675712Z"
+    },
+    "output_reports_sent": 38,
+    "settings_write_reports": 0,
+    "adapter_activation": false
+  }
+}

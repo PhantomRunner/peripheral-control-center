@@ -3,6 +3,7 @@ import { expect, it, vi } from 'vitest';
 import { MouseWorkspace } from './MouseWorkspace';
 import { mouse } from '../test/fixtures';
 import { performanceCaps,performanceSnapshot } from './testFixtures';
+import { PARAMETERS } from './performance';
 
 it('keeps drafts across accessible tabs without sending requests', () => {
   const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
@@ -65,6 +66,25 @@ it('sends only the selected change and clears authorization after a failed write
   expect(JSON.parse(fetch.mock.calls[2][1].body).action).toEqual({operation:'motion_sync',enabled:true});
   expect(screen.getByRole('checkbox',{name:'Allow this change to persist in device memory'})).not.toBeChecked();
   expect(screen.getByRole('button',{name:'Apply selected change'})).toBeDisabled();
+});
+
+it('shows explicitly read stages and sensor values while all new writes stay disabled',async()=>{
+  const fetch=fakeApi();
+  const caps={...performanceCaps,parameters:{...performanceCaps.parameters}};
+  for(const name of PARAMETERS) caps.parameters[name]={...caps.parameters[name],write:false,values:[],minimum:null,maximum:null,step:null};
+  render(<MouseWorkspace device={{...mouse,performance_capabilities:caps}} stale={false} onUpdated={vi.fn()} />);
+  expect(fetch).not.toHaveBeenCalled();
+  await readPerformance();
+  expect(screen.getByRole('button',{name:'Stage 1 · active 800 DPI'})).toBeVisible();
+  fireEvent.change(screen.getByLabelText('Selected stage DPI (draft)'),{target:{value:'1200'}});
+  expect(screen.getByRole('button',{name:'Apply selected change'})).toBeDisabled();
+  expect(screen.getByRole('checkbox',{name:'Allow this change to persist in device memory'})).toBeDisabled();
+  fireEvent.click(screen.getByRole('tab',{name:'Sensor'}));
+  expect(screen.getByText('5 ms')).toBeVisible();
+  fireEvent.change(screen.getByLabelText('Sensor parameter'),{target:{value:'motion_sync'}});
+  fireEvent.change(screen.getByLabelText('Motion Sync (draft)'),{target:{value:'true'}});
+  expect(screen.getByRole('button',{name:'Apply selected change'})).toBeDisabled();
+  expect(fetch).toHaveBeenCalledTimes(2);
 });
 
 it('rejects a late read across disconnect and reconnect without automatically restarting',async()=>{
