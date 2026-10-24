@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
+from .performance_models import PerformanceCapabilities
 
 
 class DeviceCapabilities(BaseModel):
@@ -68,6 +69,7 @@ class DeviceSummary(BaseModel):
     write_options: MouseWriteOptions | None = None
     rgb_write_options: RgbWriteOptions | None = None
     studio_capabilities: StudioCapabilities | None = None
+    performance_capabilities: PerformanceCapabilities | None = None
     note: str
 
 

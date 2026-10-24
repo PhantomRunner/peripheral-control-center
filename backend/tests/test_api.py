@@ -43,7 +43,7 @@ def test_device_api_shape(
             "id", "name", "kind", "status", "connected_usb_ids", "battery_percent",
             "dpi", "polling_rate_hz", "driver_state", "note",
             "firmware_version", "capabilities", "connection",
-            "telemetry_updated_at", "settings_updated_at", "write_options", "control_responded", "control_checked_at", "rgb_write_options", "studio_capabilities",
+            "telemetry_updated_at", "settings_updated_at", "write_options", "control_responded", "control_checked_at", "rgb_write_options", "studio_capabilities", "performance_capabilities",
         }
         assert item["battery_percent"] is None
         assert item["dpi"] is None
