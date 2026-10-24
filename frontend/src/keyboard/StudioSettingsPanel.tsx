@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { download } from './download';
 import { exportStudioProfile, parseStudioProfile, type StudioProfile } from './studioProfile';
+import type { Device } from '../types';
+import { StudioActionControls } from './StudioActionControls';
+import { localClockTime } from './studioApi';
 
-export function StudioSettingsPanel({ profile, onChange }: { profile: StudioProfile; onChange: (value: StudioProfile) => void }) {
+export function StudioSettingsPanel({ profile, onChange, device, stale, onUpdated }: { profile: StudioProfile; onChange: (value: StudioProfile) => void; device: Device; stale: boolean; onUpdated: () => Promise<void> }) {
   const [notice, setNotice] = useState<{ error: boolean; text: string } | null>(null);
   const [clock, setClock] = useState(() => new Date());
   const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   // No HID operation, session consent or automatic-sync timer is stored in a profile.
@@ -22,12 +26,12 @@ export function StudioSettingsPanel({ profile, onChange }: { profile: StudioProf
   return <div className="studio-screen-grid">
     <section className="panel studio-form" aria-labelledby="studio-standby-title">
       <div className="studio-kicker">DEVICE / DRAFT</div><h2 id="studio-standby-title">Standby & clock</h2>
-      <label>Screen standby<select value={profile.standbyMinutes} onChange={event => onChange({ ...profile, standbyMinutes: Number(event.target.value) })}>{[[0,'Never'],[1,'1 minute'],[5,'5 minutes'],[30,'30 minutes']].map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-      <button className="secondary" type="button" disabled>Apply standby</button>
-      <p className="device-note">These are the four source-defined standby choices. The current keyboard setting is unavailable; applying a new value requires exact-device validation.</p>
+      <label>Screen standby<select disabled={busy} value={profile.standbyMinutes} onChange={event => onChange({ ...profile, standbyMinutes: Number(event.target.value) })}>{[[0,'Never'],[1,'1 minute'],[5,'5 minutes'],[30,'30 minutes']].map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+      <StudioActionControls device={device} stale={stale} supported={device.studio_capabilities?.standby_write === true} intent={{ operation: 'standby', minutes: profile.standbyMinutes }} label="Apply standby" busy={busy} onBusy={setBusy} onUpdated={onUpdated} />
+      <p className="device-note">Four configured standby choices. The current keyboard setting is unavailable.</p>
       <div className="studio-clock"><span>COMPUTER LOCAL TIME</span><strong>{clock.toLocaleTimeString()}</strong><small>{clock.toLocaleDateString()} · {Intl.DateTimeFormat().resolvedOptions().timeZone}</small></div>
       <button className="studio-text-button" type="button" onClick={() => setClock(new Date())}>Refresh clock preview</button>
-      <div className="profile-actions"><button className="secondary" type="button" disabled>Sync keyboard clock</button><button className="secondary" type="button" disabled>Send everything</button></div>
+      <StudioActionControls device={device} stale={stale} supported={device.studio_capabilities?.clock_write === true} intent={() => ({ operation: 'clock', local_time: localClockTime() })} label="Sync keyboard clock" busy={busy} onBusy={setBusy} onUpdated={onUpdated} />
       <label>Automatic sync interval (minutes)<input type="number" min="1" max="1440" value={profile.clockIntervalMinutes} onChange={event => onChange({ ...profile, clockIntervalMinutes: Math.max(1, Math.min(1440, Math.round(Number(event.target.value)))) })} /></label>
       <label className="tool-confirmation"><input type="checkbox" disabled checked={false} readOnly />Keep keyboard clock in sync</label>
       <p className="device-note">Clock writes and automatic sync are unavailable until the clock protocol is validated. No background write runs.</p>

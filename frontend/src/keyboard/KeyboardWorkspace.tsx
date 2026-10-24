@@ -45,7 +45,7 @@ export function KeyboardWorkspace({ device, stale, onUpdated }: { device: Device
       {tab === 'lighting' && <LightingPanel device={device} stale={stale} draft={lighting} onChange={setLighting} iso={iso} onIso={setIso} onUpdated={onUpdated} />}
       {tab === 'screen' && <ScreenPanel draft={screen} onChange={setScreen} source={source} onSource={setSource} />}
       {tab === 'keys' && <KeyMappingPanel mappings={mappings} onChange={setMappings} iso={iso} />}
-      {tab === 'settings' && <StudioSettingsPanel profile={profile} onChange={loadProfile} />}
+      {tab === 'settings' && <StudioSettingsPanel profile={profile} onChange={loadProfile} device={device} stale={stale} onUpdated={onUpdated} />}
       {tab === 'device' && <><DeviceDetails device={device} stale={stale} onTelemetryRead={onUpdated} /><ProfilePanel device={device} stale={stale} onUpdated={onUpdated} /></>}
     </div>
   </div>;

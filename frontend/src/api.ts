@@ -16,6 +16,7 @@ function isNullableNumber(value: unknown): boolean {
 function isDevice(value: unknown): value is Device {
   if (!isRecord(value) || !isRecord(value.capabilities) || !isRecord(value.connection)) return false;
   const { capabilities, connection } = value;
+  const studio = value.studio_capabilities;
   return typeof value.id === 'string' && value.id.length > 0
     && typeof value.name === 'string'
     && (value.kind === 'mouse' || value.kind === 'keyboard')
@@ -34,6 +35,10 @@ function isDevice(value: unknown): value is Device {
     && (value.control_checked_at === null || (typeof value.control_checked_at === 'string'
       && /^\d{4}-\d{2}-\d{2}T/.test(value.control_checked_at) && Number.isFinite(Date.parse(value.control_checked_at))))
     && (value.driver_state === 'not_implemented' || value.driver_state === 'read_only' || value.driver_state === 'read_write')
+    && (studio === undefined || studio === null || (isRecord(studio)
+      && ['lighting_effects','clock_write','standby_write','screen_write'].every(key => typeof studio[key] === 'boolean')
+      && typeof studio.max_screen_frames === 'number' && Number.isInteger(studio.max_screen_frames)
+      && studio.max_screen_frames >= 0 && studio.max_screen_frames <= 120))
     && (value.write_options === null || (isRecord(value.write_options)
       && Array.isArray(value.write_options.dpi) && value.write_options.dpi.every((n) => typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= 32000)
       && Array.isArray(value.write_options.polling_rate_hz) && value.write_options.polling_rate_hz.every((n) => [125, 250, 500, 1000, 2000, 4000, 8000].includes(n))

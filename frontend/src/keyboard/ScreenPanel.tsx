@@ -77,7 +77,7 @@ export function ScreenPanel({ draft, onChange, source, onSource }: {
         <button className="secondary" type="button" onClick={renderText}>Create text artwork</button>
       </fieldset>
       <fieldset><legend>Crop & conversion</legend>
-        {([['cropX', 'Horizontal offset', -100, 100], ['cropY', 'Vertical offset', -100, 100], ['zoom', 'Zoom', 100, 300]] as const).map(([key, label, min, max]) => <label key={key} className="studio-range">{label}<output>{draft[key]}{key === 'zoom' ? '%' : ''}</output><input type="range" min={min} max={max} value={draft[key]} onChange={event => onChange({ ...draft, [key]: Number(event.target.value) })} /></label>)}
+        {([['cropX', 'Horizontal offset', -100, 100], ['cropY', 'Vertical offset', -100, 100], ['zoom', 'Zoom', 100, 300]] as const).map(([key, label, min, max]) => <label key={key} className="studio-range">{label}<output>{draft[key]}{key === 'zoom' ? '%' : ''}</output><input aria-label={label} type="range" min={min} max={max} value={draft[key]} onChange={event => onChange({ ...draft, [key]: Number(event.target.value) })} /></label>)}
         <label className="tool-confirmation"><input type="checkbox" checked={draft.dither} onChange={event => onChange({ ...draft, dither: event.target.checked })} />Smooth gradients with dithering</label>
         <label>Frame limit<input type="number" min="1" max="120" value={draft.maxFrames} onChange={event => onChange({ ...draft, maxFrames: Math.max(1, Math.min(120, Math.round(Number(event.target.value)))) })} /></label>
       </fieldset>
