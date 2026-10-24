@@ -33,6 +33,7 @@ describe('discovery views', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(deviceResponse()));
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'AJAZZ AK820 Pro.', level: 1 })).toBeVisible();
+    fireEvent.click(screen.getByRole('tab', { name: 'Device & profiles' }));
     expect(screen.getByRole('region', { name: 'Connection' })).toHaveTextContent('Wired USB detected');
   });
 
@@ -44,6 +45,7 @@ describe('discovery views', () => {
     for (const device of [mouse, keyboard, mouse, keyboard, mouse, keyboard]) {
       fireEvent.click(within(navigation).getByRole('link', { name: new RegExp(device.name) }));
       await screen.findByRole('heading', { name: `${device.name}.`, level: 1 });
+      if (device.kind === 'keyboard') fireEvent.click(screen.getByRole('tab', { name: 'Device & profiles' }));
       for (const region of ['Connection', 'Telemetry', 'Adapter support', 'Software profiles']) {
         expect(screen.getAllByRole('region', { name: region })).toHaveLength(1);
       }
