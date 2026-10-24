@@ -6,10 +6,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from pcc.drivers import registry
-from pcc.drivers.pulsar_performance import PerformanceUnavailable, read_performance
+from pcc.drivers.pulsar_performance import PerformanceUnavailable, apply_performance,read_performance
 from pcc.main import app
 from pcc.performance_api import PerformanceService, get_performance_service
-from pcc.performance_models import DpiStage, PerformanceCapabilities, PerformanceSnapshot, SensorSnapshot
+from pcc.performance_models import DpiStage, ParameterCapability,PerformanceApplyRequest,PerformanceCapabilities, PerformanceSnapshot, SensorSnapshot
 from pcc.telemetry import TelemetryService
 from pcc.telemetry_api import get_telemetry_service
 
@@ -107,3 +107,77 @@ def test_child_boundary_validates_finite_result_and_never_retries(monkeypatch,ba
     args,kwargs = run.call_args
     assert args[0][1:] == ['-m','pcc.diagnostics.pulsar_performance_probe','--execute','--vendor-tools-closed']
     assert kwargs['timeout'] == 26 and 'shell' not in kwargs
+
+
+APPLY_URL=URL.replace('/read','/apply')
+APPLY_BODY={'action':{'operation':'stage_dpi','stage_index':0,'dpi':1200},'expected_profile_index':0,
+            'expected_active_stage_index':2,'vendor_tools_closed':True,'allow_device_memory_writes':True}
+
+
+def enable_fake_write(service):
+    service.capabilities=PerformanceCapabilities(snapshot_read=True,parameters={
+        'stage_dpi':ParameterCapability(read=True,write=True,values=[1200])})
+    actual=snapshot().model_copy(update={'stages':[DpiStage(index=i,x=1200 if i==0 else 800,y=1200 if i==0 else 800) for i in range(3)]})
+    service.writer=Mock(return_value=actual)
+    return actual
+
+
+def test_apply_rejects_unvalidated_support_and_requires_both_consents(api):
+    client,headers,reader,_present,service,_telemetry=api
+    service.writer=Mock(side_effect=AssertionError('Gated write'))
+    assert client.post(APPLY_URL,headers=headers,json=APPLY_BODY).status_code==409
+    enable_fake_write(service)
+    assert client.post(APPLY_URL,json=APPLY_BODY).status_code==403
+    assert client.post(APPLY_URL,headers={**headers,'Origin':'http://foreign.example'},json=APPLY_BODY).status_code==403
+    for patch in [{'vendor_tools_closed':False},{'allow_device_memory_writes':False},{'action':{'operation':'raw','address':1}}, {'raw_packet':'00'}]:
+        assert client.post(APPLY_URL,headers=headers,json={**APPLY_BODY,**patch}).status_code in {409,422}
+    service.writer.assert_not_called()
+    response=client.post(APPLY_URL,headers=headers,json=APPLY_BODY)
+    assert response.status_code==200 and response.json()['status']=='verified'
+    assert response.json()['actual']['stages'][0]['x']==1200 and response.json()['persistence_verified'] is False
+    reader.assert_not_called()
+    service.writer.assert_called_once()
+
+
+@pytest.mark.parametrize('failure',['busy','offline','mismatch','profile','stage','exception'])
+def test_apply_does_not_claim_partial_or_unrelated_success(api,failure):
+    client,headers,_reader,present,service,telemetry=api
+    actual=enable_fake_write(service)
+    if failure=='busy':telemetry._operation_lock.acquire()
+    if failure=='offline':present.clear()
+    if failure=='mismatch':service.writer.return_value=snapshot()
+    if failure=='profile':service.writer.return_value=actual.model_copy(update={'active_profile_index':1})
+    if failure=='stage':service.writer.return_value=actual.model_copy(update={'active_stage_index':1})
+    if failure=='exception':service.writer.side_effect=PerformanceUnavailable('/private/serial')
+    try:
+        response=client.post(APPLY_URL,headers=headers,json=APPLY_BODY)
+    finally:
+        if failure=='busy':telemetry._operation_lock.release()
+    assert response.status_code==(423 if failure=='busy' else 502)
+    assert 'private' not in response.text
+    assert service.writer.call_count==(0 if failure in {'busy','offline'} else 1)
+
+
+@pytest.mark.parametrize('bad',[None,'count','write','intent','readback','profile','timeout'])
+def test_apply_child_results_are_bounded_and_semantically_verified(monkeypatch,bad):
+    actual=snapshot()
+    body={**APPLY_BODY,'action':{'operation':'stage_dpi','stage_index':0,'dpi':800}}
+    data={'result':{'status':'verified','requested':body['action'],'actual':actual.model_dump(mode='json'),
+                    'persistence_verified':False,'may_persist':True},'output_reports_sent':69,'settings_write_reports':1}
+    if bad=='count':data['output_reports_sent']=68
+    if bad=='write':data['settings_write_reports']=2
+    if bad=='intent':data['result']['requested']={'operation':'stage_dpi','stage_index':1,'dpi':800}
+    if bad=='readback':data['result']['actual']['stages'][0]['x']=1200
+    if bad=='profile':data['result']['actual']['active_profile_index']=1
+    run=Mock(return_value=SimpleNamespace(returncode=0,stdout=json.dumps(data)))
+    if bad=='timeout':
+        import subprocess
+        run.side_effect=subprocess.TimeoutExpired('private',52)
+    monkeypatch.setattr('pcc.drivers.pulsar_performance.subprocess.run',run)
+    if bad:
+        with pytest.raises(PerformanceUnavailable):apply_performance(PerformanceApplyRequest.model_validate(body))
+    else:assert apply_performance(PerformanceApplyRequest.model_validate(body)).stages[0].x==800
+    run.assert_called_once()
+    args,kwargs=run.call_args
+    assert args[0][1:]==['-m','pcc.diagnostics.pulsar_performance_apply','--apply']
+    assert kwargs['timeout']==52 and json.loads(kwargs['input'])==body and 'shell' not in kwargs

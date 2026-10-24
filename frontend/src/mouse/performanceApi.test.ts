@@ -32,3 +32,13 @@ it('does not retry uncertain writes or expose server diagnostics',async()=>{
   await expect(new PerformanceClient().apply({operation:'polling_rate',hz:500},performanceSnapshot)).rejects.toThrow('not confirmed');
   expect(fetch).toHaveBeenCalledTimes(2);
 });
+
+it('rejects claimed success when an unrequested parameter changed or rotation stayed disabled',async()=>{
+  for(const rotation of [false,true]) {
+    const action=rotation?{operation:'rotation' as const,degrees:-10}:{operation:'stage_dpi' as const,stage_index:0,dpi:800};
+    const actual=rotation?{...performanceSnapshot,sensor:{...performanceSnapshot.sensor,rotation:-10,rotation_enabled:false}}
+      :{...performanceSnapshot,polling_rate_hz:500};
+    vi.stubGlobal('fetch',vi.fn().mockResolvedValueOnce(Response.json({token:'a'.repeat(43),expires_in_seconds:1800})).mockResolvedValueOnce(Response.json({status:'verified',requested:action,actual,persistence_verified:false,may_persist:true})));
+    await expect(new PerformanceClient().apply(action,performanceSnapshot)).rejects.toThrow('readback did not match');
+  }
+});

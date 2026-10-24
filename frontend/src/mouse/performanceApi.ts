@@ -1,5 +1,5 @@
 import { LocalApiClient, LocalApiError } from '../localApi';
-import { matchesAction, parseSnapshot, record, type PerformanceAction, type PerformanceSnapshot } from './performance';
+import { matchesAction, parseSnapshot, preservesOtherSettings,record, type PerformanceAction, type PerformanceSnapshot } from './performance';
 
 const base='/api/devices/pulsar_susanto_x/performance';
 export class PerformanceClient {
@@ -15,7 +15,7 @@ export class PerformanceClient {
       if (!record(value) || value.status!=='verified' || value.persistence_verified!==false || value.may_persist!==true || !record(value.requested)
         || Object.keys(action).some(key=>value.requested && record(value.requested) && value.requested[key]!==action[key as keyof PerformanceAction])) throw new Error('No matching verified result. Settings may have changed.');
       const actual=parseSnapshot(value.actual);
-      if (actual.active_profile_index!==snapshot.active_profile_index || actual.stage_count!==snapshot.stage_count || !matchesAction(actual,action)) throw new Error('Device readback did not match. Settings may have changed.');
+      if (!preservesOtherSettings(snapshot,actual,action) || !matchesAction(actual,action)) throw new Error('Device readback did not match. Settings may have changed.');
       return actual;
     } catch (cause) { throw performanceError(cause); }
   }

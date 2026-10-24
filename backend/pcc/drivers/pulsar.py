@@ -4,7 +4,7 @@ from typing import AbstractSet
 
 from pcc.models import DeviceCapabilities, DeviceConnection, DeviceSummary, MouseWriteOptions
 from .protocols.pulsar_settings import DPI_RECORDS, POLLING_RECORDS
-from pcc.performance_models import PerformanceCapabilities
+from pcc.performance_support import validated_capabilities
 
 
 class PulsarAdapter:
@@ -22,7 +22,7 @@ class PulsarAdapter:
             capabilities=DeviceCapabilities(battery_read=True, firmware_read=True, dpi_read=True, polling_rate_read=True, settings_write=True),
             driver_state="read_write",
             write_options=MouseWriteOptions(dpi=list(DPI_RECORDS), polling_rate_hz=list(POLLING_RECORDS)),
-            performance_capabilities=PerformanceCapabilities(),
+            performance_capabilities=validated_capabilities(),
             note=(
                 "8K receiver detected. Hardware reads require explicit action or opt-in battery polling; wireless link is not verified."
                 if receiver else "8K receiver not detected."

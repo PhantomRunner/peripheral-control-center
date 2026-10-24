@@ -140,3 +140,13 @@ def write_record(action: PerformanceAction) -> tuple[Register, bytes]:
 def write_packet(action: PerformanceAction) -> bytes:
     register, record = write_record(action)
     return _packet(7, register, record)
+
+
+def action_packets(action: PerformanceAction, *, rotation_enabled: bool | None = None) -> tuple[bytes, ...]:
+    packet = write_packet(action)
+    if isinstance(action, RotationAction):
+        if type(rotation_enabled) is not bool:
+            raise ValueError('Rotation enable state is required.')
+        if not rotation_enabled:
+            return _packet(7, Register.ROTATION_STATE, pair(1)), packet
+    return (packet,)

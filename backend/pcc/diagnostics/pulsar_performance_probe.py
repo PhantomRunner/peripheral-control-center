@@ -58,13 +58,15 @@ def plan() -> dict:
 
 
 @contextmanager
-def deadline():
+def deadline(seconds: int = 24):
+    if seconds not in {24, 50}:
+        raise ValueError('Invalid diagnostic deadline.')
     if signal.getitimer(signal.ITIMER_REAL) != (0.0, 0.0):
         raise ProbeBlocked('Run this diagnostic in a standalone process.')
     def expired(_signum, _frame):
         raise ProbeBlocked('Performance read deadline reached.')
     previous = signal.signal(signal.SIGALRM, expired)
-    signal.setitimer(signal.ITIMER_REAL, 24)
+    signal.setitimer(signal.ITIMER_REAL, seconds)
     try:
         yield
     finally:
@@ -73,14 +75,17 @@ def deadline():
 
 
 class PerformanceHidraw:
-    def __init__(self, opened: HidrawProbe):
+    def __init__(self, opened: HidrawProbe, maximum_reports: int = 40):
         self.opened = opened
         self.sent = 0
         self.last_query: str | None = None
+        if maximum_reports not in {40, 82}:
+            raise ValueError('Invalid performance budget.')
+        self.maximum_reports = maximum_reports
 
     def exchange(self, query: Query | Register) -> Reply:
         packet = packet_for(query)
-        if self.sent >= 40:
+        if self.sent >= self.maximum_reports:
             raise ProbeBlocked('Performance read budget exhausted.')
         self.opened.target.verify_cached_identity()
         check_competitors(self.opened.numbers)
@@ -112,7 +117,7 @@ def _capture(transport) -> tuple[dict, dict[Register, bytes]]:
     return {'firmware': firmware, 'profile': profile, 'count': count, 'active': active}, records
 
 
-def observe(transport) -> PerformanceSnapshot:
+def observe_details(transport) -> tuple[PerformanceSnapshot, dict, dict[Register, bytes]]:
     context, records = _capture(transport)
     if _capture(transport) != (context, records):
         raise ProbeBlocked('Performance settings changed during the read; snapshot discarded.')
@@ -121,10 +126,17 @@ def observe(transport) -> PerformanceSnapshot:
               for axes in [dpi_axes(records[register])]]
     sensor = {name: decode_sensor(name, records[register], records[Register.ROTATION_STATE])
               for name, register in SENSOR_REGISTERS.items()}
-    return PerformanceSnapshot(firmware_version=context['firmware'], active_profile_index=context['profile'],
+    if sensor['rotation'] is not None:
+        sensor['rotation_enabled'] = bool(complemented_value(Reply(8, records[Register.ROTATION_STATE])))
+    snapshot = PerformanceSnapshot(firmware_version=context['firmware'], active_profile_index=context['profile'],
                                stage_count=context['count'], active_stage_index=context['active'], stages=stages,
                                polling_rate_hz=polling_rate(Reply(8, records[Register.POLLING])),
                                sensor=SensorSnapshot(**sensor))
+    return snapshot, context, records
+
+
+def observe(transport) -> PerformanceSnapshot:
+    return observe_details(transport)[0]
 
 
 def main(argv: list[str] | None = None) -> int:

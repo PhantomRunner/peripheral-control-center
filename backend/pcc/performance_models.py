@@ -43,6 +43,7 @@ class SensorSnapshot(StrictModel):
     ripple_control: bool | None = None
     turbo: bool | None = None
     rotation: int | None = Field(default=None, ge=-30, le=30)
+    rotation_enabled: bool | None = None
 
 
 class PerformanceSnapshot(StrictModel):
@@ -136,3 +137,29 @@ class PerformanceApplyResult(StrictModel):
     actual: PerformanceSnapshot
     persistence_verified: Literal[False] = False
     may_persist: Literal[True] = True
+
+    @model_validator(mode='after')
+    def matching_readback(self) -> Self:
+        action, actual = self.requested, self.actual
+        if action.operation == 'stage_dpi':
+            if action.stage_index >= actual.stage_count or (actual.stages[action.stage_index].x,actual.stages[action.stage_index].y) != (action.dpi,action.dpi):
+                raise ValueError('DPI readback mismatch.')
+        elif action.operation == 'active_stage':
+            if actual.active_stage_index != action.stage_index:
+                raise ValueError('Active stage readback mismatch.')
+        elif action.operation == 'polling_rate':
+            if actual.polling_rate_hz != action.hz:
+                raise ValueError('Polling readback mismatch.')
+        else:
+            value = action.millimetres if action.operation == 'lod' else action.milliseconds if action.operation == 'debounce' else action.degrees if action.operation == 'rotation' else action.enabled
+            if getattr(actual.sensor,action.operation) != value or (action.operation == 'rotation' and actual.sensor.rotation_enabled is not True):
+                raise ValueError('Sensor readback mismatch.')
+        return self
+
+
+def validate_apply_context(request: PerformanceApplyRequest, actual: PerformanceSnapshot) -> None:
+    if actual.active_profile_index != request.expected_profile_index:
+        raise ValueError('Profile changed during Apply.')
+    expected_stage = request.action.stage_index if request.action.operation == 'active_stage' else request.expected_active_stage_index
+    if actual.active_stage_index != expected_stage:
+        raise ValueError('Unexpected active stage after Apply.')
