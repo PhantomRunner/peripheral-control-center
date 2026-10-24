@@ -2,7 +2,7 @@
 
 from typing import AbstractSet
 
-from pcc.models import DeviceCapabilities, DeviceConnection, DeviceSummary, RgbWriteOptions
+from pcc.models import DeviceCapabilities, DeviceConnection, DeviceSummary, RgbWriteOptions, StudioCapabilities
 from .protocols.ajazz_rgb import BRIGHTNESS_STEPS
 
 
@@ -20,6 +20,7 @@ class AjazzAdapter:
             capabilities=DeviceCapabilities(control_read=True, settings_write=True),
             driver_state="read_write",
             rgb_write_options=RgbWriteOptions(brightness_steps=list(BRIGHTNESS_STEPS)),
+            studio_capabilities=StudioCapabilities(lighting_effects=True, clock_write=True, standby_write=True),
             status=(
                 "wired_detected" if wired else
                 "receiver_detected" if receiver else "offline"

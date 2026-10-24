@@ -1,0 +1,116 @@
+{
+  "source": "redacted decoded diagnostic results; not raw wire captures",
+  "usb_id": "0c45:8009",
+  "owner_visual_confirmation": {
+    "breathe_blue": true,
+    "screen_checkerboard": true,
+    "clock": null,
+    "standby": null
+  },
+  "observations": {
+    "lighting": {
+      "completed_at": "2026-10-24T13:22:50.737635+00:00",
+      "elapsed_seconds": 0.548,
+      "exit_code": 0,
+      "result": {
+        "status": "sequence_acknowledged_visual_check_required",
+        "operation": "lighting",
+        "requested": {
+          "effect": "breathe",
+          "color": "#4080ff",
+          "brightness": 60,
+          "speed": 3,
+          "direction": "left",
+          "rainbow": false
+        },
+        "usb_id": "0c45:8009",
+        "actual_settings": null,
+        "persistence_verified": false,
+        "diagnostics": {
+          "phase": "save",
+          "feature_sets_attempted": 4,
+          "feature_sets_completed": 4,
+          "feature_gets_attempted": 4,
+          "last_received_length": 65,
+          "last_known_ack_command": 2,
+          "last_known_ack_success": true
+        }
+      }
+    },
+    "clock": {
+      "completed_at": "2026-10-24T13:22:58.035594+00:00",
+      "elapsed_seconds": 0.5555,
+      "exit_code": 0,
+      "result": {
+        "status": "sequence_acknowledged_visual_check_required",
+        "operation": "clock",
+        "requested": {
+          "local_time": "2026-10-24T14:22:57+01:00"
+        },
+        "usb_id": "0c45:8009",
+        "actual_settings": null,
+        "persistence_verified": false,
+        "diagnostics": {
+          "phase": "save",
+          "feature_sets_attempted": 4,
+          "feature_sets_completed": 4,
+          "feature_gets_attempted": 4,
+          "last_received_length": 65,
+          "last_known_ack_command": 2,
+          "last_known_ack_success": true
+        }
+      }
+    },
+    "standby": {
+      "completed_at": "2026-10-24T13:23:06.915312+00:00",
+      "elapsed_seconds": 0.5598,
+      "exit_code": 0,
+      "result": {
+        "status": "sequence_acknowledged_visual_check_required",
+        "operation": "standby",
+        "requested": {
+          "minutes": 5
+        },
+        "usb_id": "0c45:8009",
+        "actual_settings": null,
+        "persistence_verified": false,
+        "diagnostics": {
+          "phase": "save",
+          "feature_sets_attempted": 4,
+          "feature_sets_completed": 4,
+          "feature_gets_attempted": 4,
+          "last_received_length": 65,
+          "last_known_ack_command": 2,
+          "last_known_ack_success": true
+        }
+      }
+    },
+    "screen": {
+      "completed_at": "2026-10-24T13:23:16.720996+00:00",
+      "elapsed_seconds": 2.4593,
+      "exit_code": 0,
+      "result": {
+        "status": "screen_transfer_completed_visual_check_required",
+        "operation": "screen",
+        "usb_id": "0c45:8009",
+        "requested": "static 128\u00d7128 blue/white checkerboard",
+        "actual_settings": null,
+        "persistence_verified": false,
+        "data_receipt_semantics_verified": false,
+        "diagnostics": {
+          "phase": "save",
+          "feature_sets_attempted": 3,
+          "feature_sets_completed": 3,
+          "feature_gets_attempted": 4,
+          "data_outputs_attempted": 9,
+          "data_outputs_completed": 9,
+          "data_receipts": 9,
+          "data_receipt_semantics_verified": false,
+          "data_reply_length": 64
+        }
+      }
+    }
+  },
+  "persistence_verified": false,
+  "raw_reports_captured": false
+}

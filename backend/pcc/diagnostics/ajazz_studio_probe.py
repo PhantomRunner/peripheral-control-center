@@ -7,10 +7,12 @@ import argparse
 import hashlib
 import json
 import os
+import sys
 import time
 from datetime import datetime
 from typing import Protocol
 from zoneinfo import ZoneInfo
+from pydantic import TypeAdapter
 
 from pcc.diagnostics import ajazz_rgb_probe as rgb
 from pcc.drivers.protocols.ajazz_studio import Command, ControlPlan, StudioLighting, control_plan, parse_ack, screen_config_payload, screen_test_payload
@@ -84,23 +86,35 @@ def observe(transport: Features, operation_plan: ControlPlan) -> dict:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--operation', required=True, choices=('lighting', 'clock', 'standby', 'screen'))
-    parser.add_argument('--execute', action='store_true')
+    execution = parser.add_mutually_exclusive_group()
+    execution.add_argument('--execute', action='store_true')
+    execution.add_argument('--apply', action='store_true', help='Bounded semantic intent on stdin; explicit memory consent required.')
     parser.add_argument('--vendor-tools-closed', action='store_true')
     parser.add_argument('--allow-device-memory-writes', action='store_true')
     args = parser.parse_args(argv)
-    if not args.execute:
+    if not args.execute and not args.apply:
         print(json.dumps(plan(args.operation), indent=2)); return 0
     transport = None
     try:
         if os.geteuid() == 0 or not args.vendor_tools_closed or not args.allow_device_memory_writes:
             raise rgb.ProbeBlocked('Normal user and separate tool/memory consent are required.')
         if args.operation == 'screen':
+            if args.apply: raise rgb.ProbeBlocked('Application screen input is not enabled here.')
             from pcc.diagnostics.ajazz_screen_probe import open_screen, observe_screen
             with rgb.process_deadline(), open_screen() as transport:
                 result = observe_screen(transport)
                 result['diagnostics'] = transport.diagnostics()
         else:
-            operation_plan = experiment(args.operation)
+            if args.apply:
+                from pcc.studio_models import StudioIntent, LightingIntent, ClockIntent
+                content = sys.stdin.read(2049)
+                if len(content) > 2048: raise rgb.ProbeBlocked('Studio intent input exceeds its bound.')
+                intent = TypeAdapter(StudioIntent).validate_json(content)
+                if intent.operation != args.operation: raise rgb.ProbeBlocked('Operation mismatch.')
+                desired = intent.settings if isinstance(intent, LightingIntent) else datetime.fromisoformat(intent.local_time) if isinstance(intent, ClockIntent) else intent.minutes
+                operation_plan = control_plan(intent.operation, desired)
+            else:
+                operation_plan = experiment(args.operation)
             target = rgb.discover_target()
             with rgb.process_deadline(), rgb.open_features(target, vendor_tools_closed=True) as base:
                 transport = StudioFeatures(base, operation_plan)

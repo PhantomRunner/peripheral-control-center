@@ -40,6 +40,14 @@ class RgbWriteOptions(BaseModel):
     may_persist: Literal[True] = True
 
 
+class StudioCapabilities(BaseModel):
+    lighting_effects: bool = False
+    clock_write: bool = False
+    standby_write: bool = False
+    screen_write: bool = False
+    max_screen_frames: int = Field(default=0, ge=0, le=120)
+
+
 class DeviceSummary(BaseModel):
     id: str
     name: str
@@ -59,6 +67,7 @@ class DeviceSummary(BaseModel):
     driver_state: Literal["not_implemented", "read_only", "read_write"] = "not_implemented"
     write_options: MouseWriteOptions | None = None
     rgb_write_options: RgbWriteOptions | None = None
+    studio_capabilities: StudioCapabilities | None = None
     note: str
 
 
