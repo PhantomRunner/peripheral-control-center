@@ -1,0 +1,78 @@
+#!/bin/sh
+# One-command native Linux startup. Only Docker and standard OS tools on host.
+set -eu
+umask 077
+
+pcc_repo=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+cd "$pcc_repo"
+if [ "$(uname -s)" != Linux ]; then
+    echo 'Hardware mode requires native Linux Docker Engine.' >&2
+    exit 1
+fi
+PCC_UID=$(id -u)
+PCC_GID=$(id -g)
+export PCC_UID PCC_GID
+if [ "$PCC_UID" = 0 ]; then
+    echo 'Run this launcher as your normal desktop user.' >&2
+    exit 1
+fi
+
+# Lifecycle commands can address the same project without device discovery.
+case "${1:-}" in
+    down|stop|logs|ps) exec docker compose "$@" ;;
+esac
+pcc_endpoint=${DOCKER_HOST:-$(docker context inspect --format '{{.Endpoints.docker.Host}}')}
+case "$pcc_endpoint" in
+    unix://*) ;;
+    *) echo 'Hardware mode requires a local Docker daemon.' >&2; exit 1 ;;
+esac
+pcc_security=$(docker info --format '{{json .SecurityOptions}}')
+case "$pcc_security" in
+    *rootless*|*userns*) echo 'Hardware mode needs Docker Engine without user-ID remapping.' >&2; exit 1 ;;
+esac
+
+pcc_config="$pcc_repo/.pcc-docker"
+pcc_runtime=${XDG_RUNTIME_DIR:-/tmp}
+pcc_locks="$pcc_runtime/pcc-$PCC_UID-locks"
+for pcc_directory in "$pcc_config" "$pcc_locks"; do
+    if [ -L "$pcc_directory" ]; then
+        echo 'A PCC runtime directory must not be a symbolic link.' >&2
+        exit 1
+    fi
+    mkdir -p -- "$pcc_directory"
+    if [ "$(stat -c %u "$pcc_directory")" != "$PCC_UID" ] || [ "$(stat -c %a "$pcc_directory")" != 700 ]; then
+        echo 'PCC runtime directories must be private and owned by the current user.' >&2
+        exit 1
+    fi
+done
+
+docker compose build pcc
+# This short-lived helper can inspect device metadata, but receives no device
+# cgroup permissions and cannot issue HID commands. Python stays in the image.
+docker run --rm --network none --read-only --user "$PCC_UID:$PCC_GID" \
+    --cap-drop ALL --security-opt no-new-privileges:true \
+    --mount type=bind,source=/sys,target=/sys,readonly \
+    --mount type=bind,source=/dev,target=/host-dev,readonly \
+    --mount "type=bind,source=$pcc_config,target=/output" \
+    --env "PCC_HOST_LOCK_DIR=$pcc_locks" \
+    pcc:local python -m pcc.container_devices
+
+# Check actual host ACLs, outside the metadata helper's read-only mount.
+while IFS= read -r pcc_node; do
+    pcc_suffix=${pcc_node#/dev/hidraw}
+    case "$pcc_suffix" in
+        ''|*[!0-9]*) echo 'Invalid HID mapping.' >&2; exit 1 ;;
+    esac
+    if [ ! -c "$pcc_node" ] || [ ! -r "$pcc_node" ] || [ ! -w "$pcc_node" ]; then
+        echo 'A selected HID interface needs the existing targeted user permissions.' >&2
+        exit 1
+    fi
+done < .pcc-docker/hid-nodes
+
+if [ "$#" = 0 ]; then
+    set -- up --detach --force-recreate --wait
+elif [ "$1" = up ]; then
+    shift
+    set -- up --force-recreate "$@"
+fi
+exec docker compose -f compose.yaml -f .pcc-docker/compose.hardware.json "$@"
