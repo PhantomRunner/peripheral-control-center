@@ -6,11 +6,13 @@ import { KeyboardPreview } from './KeyboardPreview';
 import { directional, EFFECTS, verifiedStatic, type LightingDraft } from './lighting';
 import { StudioActionControls } from './StudioActionControls';
 
-export function LightingPanel({ device, stale, draft, onChange, iso, onIso, onUpdated }: {
+export function LightingPanel({ device, stale, draft, onChange, iso, onIso, onUpdated, externalBusy=false }: {
   device: Device; stale: boolean; draft: LightingDraft; onChange: (value: LightingDraft) => void;
   iso: boolean; onIso: (value: boolean) => void; onUpdated: () => Promise<void>;
+  externalBusy?:boolean;
 }) {
-  const [busy, setBusy] = useState(false);
+  const [localBusy, setBusy] = useState(false);
+  const busy=localBusy||externalBusy;
   const desired = useMemo<KeyboardSettings>(() => ({ kind: 'keyboard', rgb: { mode: 'static', color: draft.color, brightness_percent: draft.brightness } }), [draft.color, draft.brightness]);
   return <div className="studio-lighting-grid">
     <section className="panel studio-preview-panel" aria-label="Lighting preview">

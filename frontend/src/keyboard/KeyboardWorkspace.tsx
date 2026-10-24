@@ -12,6 +12,7 @@ import type { KeyMapping } from './keyMapping';
 import { StudioSettingsPanel } from './StudioSettingsPanel';
 import { DEFAULT_PROFILE, type StudioProfile } from './studioProfile';
 import { useScreenTransfer } from './useScreenTransfer';
+import { useStudioBatch } from './useStudioBatch';
 import './studio.css';
 
 export function KeyboardWorkspace({ device, stale, onUpdated }: { device: Device; stale: boolean; onUpdated: () => Promise<void> }) {
@@ -25,6 +26,7 @@ export function KeyboardWorkspace({ device, stale, onUpdated }: { device: Device
   const [clockIntervalMinutes, setClockInterval] = useState(DEFAULT_PROFILE.clockIntervalMinutes);
   const transfer = useScreenTransfer();
   const profile: StudioProfile = { ...DEFAULT_PROFILE, lighting, screen, mappings, iso, standbyMinutes, clockIntervalMinutes };
+  const batch=useStudioBatch(device,stale,profile,source,transfer);
   const loadProfile = (next: StudioProfile) => {
     setLighting(next.lighting); setScreen(next.screen); setMappings(next.mappings); setIso(next.iso);
     setStandby(next.standbyMinutes); setClockInterval(next.clockIntervalMinutes);
@@ -44,10 +46,10 @@ export function KeyboardWorkspace({ device, stale, onUpdated }: { device: Device
       event.preventDefault(); setTab(tabs[next][0]); buttons.current[next]?.focus();
     }}>{label}</button>)}</div>
     <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`}>
-      {tab === 'lighting' && <LightingPanel device={device} stale={stale} draft={lighting} onChange={setLighting} iso={iso} onIso={setIso} onUpdated={onUpdated} />}
+      {tab === 'lighting' && <LightingPanel device={device} stale={stale} draft={lighting} onChange={setLighting} iso={iso} onIso={setIso} onUpdated={onUpdated} externalBusy={batch.busy||transfer.busy} />}
       {tab === 'screen' && <ScreenPanel draft={screen} onChange={setScreen} source={source} onSource={setSource} device={device} stale={stale} transfer={transfer} />}
       {tab === 'keys' && <KeyMappingPanel mappings={mappings} onChange={setMappings} iso={iso} />}
-      {tab === 'settings' && <StudioSettingsPanel profile={profile} onChange={loadProfile} device={device} stale={stale} onUpdated={onUpdated} />}
+      {tab === 'settings' && <StudioSettingsPanel profile={profile} onChange={loadProfile} device={device} stale={stale} onUpdated={onUpdated} externalBusy={batch.busy||transfer.busy} batch={batch} hasArtwork={source!==null} />}
       {tab === 'device' && <><DeviceDetails device={device} stale={stale} onTelemetryRead={onUpdated} /><ProfilePanel device={device} stale={stale} onUpdated={onUpdated} /></>}
     </div>
   </div>;
