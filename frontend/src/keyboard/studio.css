@@ -43,6 +43,13 @@
 .studio-form fieldset + fieldset { border-top: 1px solid #394256; margin-top: 24px; padding-top: 20px; }
 .studio-form legend { color: #d3cdef; font-size: 13px; font-weight: 600; padding-top: 14px; }
 .studio-form input[type=color] { min-height: 38px; padding: 3px; }
+.studio-key-monitor { padding: 22px 16px; border: 1px dashed #5a607c; border-radius: 10px; margin: 18px 0; color: #a4b1c8; text-align: center; font-size: 12px; }
+.studio-key-monitor.active { background: #292644; border-color: #a99cfa; color: #e1dbff; }
+.studio-key-history > div { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid #343d50; color: #a9b5ca; font-size: 12px; }
+.studio-key-history span { text-align: right; overflow-wrap: anywhere; }
+.studio-mappings { list-style: none; padding: 0; margin: 18px 0; }
+.studio-mappings li { display: flex; justify-content: space-between; gap: 10px; align-items: center; border-bottom: 1px solid #394256; padding: 6px 0; font-size: 12px; }
+.studio-config { padding: 16px; background: #0b121e; border: 1px solid #384057; border-radius: 10px; font-size: 11px; line-height: 1.8; color: #bbc5e0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 @media (max-width: 1250px) { .studio-lighting-grid { grid-template-columns: 1fr; } }
 @media (max-width: 1000px) { .studio-screen-grid { grid-template-columns: 1fr; } }
