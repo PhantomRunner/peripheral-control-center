@@ -4,6 +4,21 @@ import { useDevices } from './useDevices';
 import { deviceResponse, pendingRequest } from '../test/fixtures';
 
 describe('device refresh lifecycle', () => {
+  it('recovers on window focus and network restoration and removes listeners on unmount', async () => {
+    const fetchMock = vi.fn().mockRejectedValueOnce(new Error('offline')).mockImplementation(async () => deviceResponse());
+    vi.stubGlobal('fetch', fetchMock);
+    const { result, unmount } = renderHook(() => useDevices());
+    await act(async () => {});
+    expect(result.current.error).not.toBeNull();
+    await act(async () => { window.dispatchEvent(new Event('online')); });
+    expect(result.current.error).toBeNull();
+    await act(async () => { window.dispatchEvent(new Event('focus')); });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    unmount();
+    window.dispatchEvent(new Event('focus'));
+    window.dispatchEvent(new Event('online'));
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
   beforeEach(() => { vi.useFakeTimers(); });
 
   it('refreshes USB discovery every 15 seconds', async () => {

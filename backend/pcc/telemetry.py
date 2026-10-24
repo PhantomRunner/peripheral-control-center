@@ -87,12 +87,27 @@ class TelemetryService:
         self._snapshot: TelemetrySnapshot | None = None
         self._config_snapshot: ConfigSnapshot | None = None
         self._config_generation = 0
+        self._connection_generation = {"pulsar_susanto_x": 0, "ajazz_ak820_pro": 0}
+        self._presence: dict[str, bool] = {}
         self._state_lock = threading.Lock()
         self._operation_lock = threading.Lock()
 
     def summaries(self) -> list[DeviceSummary]:
-        devices = registry.discover_devices()
         with self._state_lock:
+            devices = registry.discover_devices()
+            present = {device.id: (device.connection.wired_usb_present if device.id == "ajazz_ak820_pro"
+                                   else device.status == "receiver_detected") for device in devices}
+            for device_id in self._connection_generation:
+                attached = present.get(device_id, False)
+                if self._presence.get(device_id) != attached:
+                    self._connection_generation[device_id] += 1
+                self._presence[device_id] = attached
+                if not attached:
+                    if device_id == "ajazz_ak820_pro":
+                        self._control_snapshot = None
+                    else:
+                        self._snapshot = None
+                        self._config_snapshot = None
             for device in devices:
                 if device.id == "ajazz_ak820_pro":
                     if not device.connection.wired_usb_present:
@@ -117,17 +132,29 @@ class TelemetryService:
                         device.settings_updated_at = self._config_snapshot.recorded_at
         return devices
 
+    def _connection(self, device_id: str) -> int:
+        self.summaries()  # Observe USB removal even when no dashboard request is running.
+        with self._state_lock:
+            if not self._presence.get(device_id):
+                raise TelemetryUnavailable("USB control hardware is not detected.")
+            return self._connection_generation[device_id]
+
+    def _same_connection(self, device_id: str, generation: int) -> None:
+        # Called under the state lock after a final passive scan.
+        if not self._presence.get(device_id) or self._connection_generation[device_id] != generation:
+            raise TelemetryUnavailable("USB connection changed during the read.")
+
     def read(self, *, vendor_tools_closed: bool) -> TelemetrySnapshot:
         if vendor_tools_closed is not True:
             raise TelemetryConsentRequired("Close other device-control tools before reading.")
         if not self._operation_lock.acquire(blocking=False):
             raise TelemetryBusy("A hardware read is already running.")
         try:
-            devices = registry.discover_devices()
-            if not any(device.id == "pulsar_susanto_x" and device.status == "receiver_detected" for device in devices):
-                raise TelemetryUnavailable("Receiver is not detected.")
+            connection = self._connection("pulsar_susanto_x")
             snapshot = self._reader()
+            self.summaries()
             with self._state_lock:
+                self._same_connection("pulsar_susanto_x", connection)
                 self._snapshot = snapshot
             return snapshot
         except (TelemetryUnavailable, OSError):
@@ -143,17 +170,17 @@ class TelemetryService:
         if not self._operation_lock.acquire(blocking=False):
             raise TelemetryBusy("A hardware read is already running.")
         try:
-            devices = registry.discover_devices()
-            if not any(device.id == "pulsar_susanto_x" and device.status == "receiver_detected" for device in devices):
-                raise ConfigReadUnavailable
+            connection = self._connection("pulsar_susanto_x")
             with self._state_lock:
                 generation = self._config_generation
             snapshot = self._config_reader()
+            self.summaries()
             with self._state_lock:
+                self._same_connection("pulsar_susanto_x", connection)
                 if generation == self._config_generation:
                     self._config_snapshot = snapshot
             return snapshot
-        except (ConfigReadUnavailable, OSError):
+        except (ConfigReadUnavailable, TelemetryUnavailable, OSError):
             with self._state_lock:
                 self._config_snapshot = None
             raise TelemetryUnavailable("DPI/polling read was not confirmed.") from None
@@ -171,14 +198,14 @@ class TelemetryService:
         if not self._operation_lock.acquire(blocking=False):
             raise TelemetryBusy("A hardware read is already running.")
         try:
-            devices = registry.discover_devices()
-            if not any(d.id == "ajazz_ak820_pro" and d.connection.wired_usb_present for d in devices):
-                raise ControlUnavailable
+            connection = self._connection("ajazz_ak820_pro")
             snapshot = self._control_reader()
+            self.summaries()
             with self._state_lock:
+                self._same_connection("ajazz_ak820_pro", connection)
                 self._control_snapshot = snapshot
             return snapshot
-        except (ControlUnavailable, OSError):
+        except (ControlUnavailable, TelemetryUnavailable, OSError):
             with self._state_lock:
                 self._control_snapshot = None
             raise TelemetryUnavailable("Wired control response was not confirmed.") from None

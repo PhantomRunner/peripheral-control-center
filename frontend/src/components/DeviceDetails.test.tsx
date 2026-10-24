@@ -1,9 +1,23 @@
-import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { DeviceDetails } from './DeviceDetails';
 import { keyboard, mouse, offlineMouse } from '../test/fixtures';
 
 describe('device details', () => {
+  it('renders independent read capabilities and renews consent after reconnect', () => {
+    const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock);
+    const configOnly = { ...mouse, capabilities: { ...mouse.capabilities, dpi_read: true, polling_rate_read: true } };
+    const { rerender } = render(<DeviceDetails device={configOnly} stale={false} onTelemetryRead={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Read DPI and polling' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Read battery and firmware' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('checkbox'));
+    rerender(<DeviceDetails device={{ ...configOnly, status: 'offline' }} stale={false} onTelemetryRead={vi.fn()} />);
+    rerender(<DeviceDetails device={configOnly} stale={false} onTelemetryRead={vi.fn()} />);
+    expect(screen.getByRole('checkbox')).not.toBeChecked();
+    rerender(<DeviceDetails device={mouse} stale={false} onTelemetryRead={vi.fn()} />);
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
   it('distinguishes a receiver from a verified wireless link', () => {
     render(<DeviceDetails device={mouse} stale={false} />);
     const connection = screen.getByRole('region', { name: 'Connection' });

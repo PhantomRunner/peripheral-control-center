@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { SettingsIntent } from '../profilesApi';
 import { SettingsClient } from '../settingsApi';
 import type { Device } from '../types';
+import { hardwareContext } from '../hardwareContext';
 
 export function ApplyControls({ device, desired, stale, busy, onBusy, onUpdated }: {
   device: Device; desired: SettingsIntent; stale: boolean; busy: boolean; onBusy: (value: boolean) => void; onUpdated?: () => Promise<void>;
@@ -12,7 +13,14 @@ export function ApplyControls({ device, desired, stale, busy, onBusy, onUpdated 
   const client = useMemo(() => new SettingsClient(), []);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  useEffect(() => { setResult(null); setToolsClosed(false); setMemoryAllowed(false); }, [desired, device.id]);
+  const context = hardwareContext(device, stale);
+  const operationContext = JSON.stringify([context, desired]);
+  const currentContext = useRef({ value: operationContext, generation: 0 });
+  if (currentContext.current.value !== operationContext) {
+    currentContext.current = { value: operationContext, generation: currentContext.current.generation + 1 };
+  }
+  const generation = currentContext.current.generation;
+  useEffect(() => { setResult(null); setToolsClosed(false); setMemoryAllowed(false); }, [desired, context]);
   const wiredRequired = device.kind === 'keyboard' && !device.connection.wired_usb_present;
   const options = device.write_options;
   const rgbOptions = device.rgb_write_options;
@@ -29,11 +37,11 @@ export function ApplyControls({ device, desired, stale, busy, onBusy, onUpdated 
     onBusy(true); setResult(null);
     try {
       const outcome = await client.apply(device.id, desired, true, memoryRequired && memoryAllowed);
-      if (mounted.current) setResult({ error: false, message: 'status' in outcome && outcome.status === 'acknowledged'
+      if (mounted.current && currentContext.current.generation === generation) setResult({ error: false, message: 'status' in outcome && outcome.status === 'acknowledged'
         ? 'Lighting command acknowledged. Current RGB and reconnect persistence remain unverified.'
         : 'Settings applied and verified by device readback.' });
     } catch (cause) {
-      if (mounted.current) setResult({ error: true, message: cause instanceof Error ? cause.message : 'Settings could not be verified.' });
+      if (mounted.current && currentContext.current.generation === generation) setResult({ error: true, message: cause instanceof Error ? cause.message : 'Settings could not be verified.' });
     } finally { if (mounted.current) { setToolsClosed(false); setMemoryAllowed(false); onBusy(false); await onUpdated?.(); } }
   };
 

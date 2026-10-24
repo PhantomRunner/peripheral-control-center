@@ -12,7 +12,9 @@ export function TelemetryControls({ device, stale, onUpdated }: { device: Device
   const available = device.status === 'receiver_detected' && device.connection.receiver_usb_present && !stale;
 
   const read = async (settings = false) => {
-    if (!available || !toolsClosed || busy) return;
+    const supported = settings ? device.capabilities.dpi_read && device.capabilities.polling_rate_read
+      : device.capabilities.battery_read && device.capabilities.firmware_read;
+    if (!available || !supported || !toolsClosed || busy) return;
     setBusy(true); setMessage(null);
     try {
       if (settings) await client.readSettings();
@@ -30,7 +32,7 @@ export function TelemetryControls({ device, stale, onUpdated }: { device: Device
 
   return <div className="telemetry-controls">
     <label className="tool-confirmation"><input type="checkbox" checked={toolsClosed} disabled={busy || !available} onChange={(event) => setToolsClosed(event.target.checked)} />Other device-control tools are closed</label>
-    <button className="secondary" type="button" disabled={busy || !available || !toolsClosed} onClick={() => { void read(); }}>{busy ? 'Reading hardware…' : 'Read battery and firmware'}</button>
+    {device.capabilities.battery_read && device.capabilities.firmware_read && <button className="secondary" type="button" disabled={busy || !available || !toolsClosed} onClick={() => { void read(); }}>{busy ? 'Reading hardware…' : 'Read battery and firmware'}</button>}
     {device.capabilities.dpi_read && device.capabilities.polling_rate_read && <button className="secondary" type="button" disabled={busy || !available || !toolsClosed} onClick={() => { void read(true); }}>Read DPI and polling</button>}
     {!available && <p className="device-note">Connect the receiver and restore the backend connection before reading.</p>}
     {message && <p role={message.error ? 'alert' : 'status'} className={message.error ? 'error' : 'profile-notice'}>{message.text}</p>}

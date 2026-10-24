@@ -2,6 +2,7 @@ import type { Device, DeviceCapabilities } from '../types';
 import { DeviceMetrics, DeviceStatus } from './DeviceCard';
 import { TelemetryControls } from './TelemetryControls';
 import { KeyboardControl } from './KeyboardControl';
+import { hardwareContext } from '../hardwareContext';
 
 const capabilities: [keyof DeviceCapabilities, string][] = [
   ['usb_discovery', 'USB discovery'], ['battery_read', 'Battery reading'],
@@ -24,7 +25,7 @@ export function DeviceDetails({ device, stale, onTelemetryRead }: { device: Devi
           <div><dt>Wireless link</dt><dd>{connection.wireless_link_verified === null ? 'Not verified' : connection.wireless_link_verified ? 'Verified' : 'Disconnected'}</dd></div>
           <div><dt>Attached USB IDs</dt><dd className="usb-ids">{device.connected_usb_ids.join(' · ') || 'None'}</dd></div>
         </dl>
-        {onTelemetryRead && device.id === 'ajazz_ak820_pro' && device.capabilities.control_read && <KeyboardControl device={device} stale={stale} onUpdated={onTelemetryRead} />}
+        {onTelemetryRead && device.id === 'ajazz_ak820_pro' && device.capabilities.control_read && <KeyboardControl key={hardwareContext(device, stale)} device={device} stale={stale} onUpdated={onTelemetryRead} />}
       </section>
       <section className="panel" aria-labelledby="telemetry-title">
         <h2 id="telemetry-title">Telemetry</h2>
@@ -33,7 +34,7 @@ export function DeviceDetails({ device, stale, onTelemetryRead }: { device: Devi
         <dl className="facts"><div><dt>Firmware version</dt><dd>{device.firmware_version ?? '—'}</dd></div></dl>
         {device.telemetry_updated_at && <p className="device-note">Last hardware read: {new Date(device.telemetry_updated_at).toLocaleString()}</p>}
         {device.settings_updated_at && <p className="device-note">Last DPI/polling read: {new Date(device.settings_updated_at).toLocaleString()}</p>}
-        {onTelemetryRead && device.id === 'pulsar_susanto_x' && device.capabilities.battery_read && device.capabilities.firmware_read && <TelemetryControls device={device} stale={stale} onUpdated={onTelemetryRead} />}
+        {onTelemetryRead && device.id === 'pulsar_susanto_x' && ((device.capabilities.battery_read && device.capabilities.firmware_read) || (device.capabilities.dpi_read && device.capabilities.polling_rate_read)) && <TelemetryControls key={hardwareContext(device, stale)} device={device} stale={stale} onUpdated={onTelemetryRead} />}
       </section>
       <section className="panel capabilities" aria-labelledby="capabilities-title">
         <h2 id="capabilities-title">Adapter support</h2>

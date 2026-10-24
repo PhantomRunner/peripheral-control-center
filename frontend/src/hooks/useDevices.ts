@@ -56,8 +56,13 @@ export function useDevices() {
   useEffect(() => {
     void refresh();
     const interval = window.setInterval(() => { void refresh(); }, 15_000);
+    const recover = () => { if (document.visibilityState !== 'hidden') void refresh(); };
+    window.addEventListener('focus', recover);
+    window.addEventListener('online', recover);
     return () => {
       window.clearInterval(interval);
+      window.removeEventListener('focus', recover);
+      window.removeEventListener('online', recover);
       queued.current = false;
       inFlight.current?.abort();
       inFlight.current = null;

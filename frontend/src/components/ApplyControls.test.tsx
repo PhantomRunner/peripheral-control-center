@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ApplyControls } from './ApplyControls';
 import { keyboard, mouse } from '../test/fixtures';
@@ -14,6 +14,35 @@ function Controls({ device = enabled, stale = false, onUpdated }: { device?: Dev
 }
 
 describe('explicit hardware Apply', () => {
+  it.each(['disconnect', 'backend', 'capability'] as const)('requires fresh consent after %s recovery', (reason) => {
+    const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock);
+    const { rerender } = render(<Controls />);
+    fireEvent.click(screen.getByRole('checkbox'));
+    const changed = reason === 'disconnect' ? { ...enabled, status: 'offline' as const }
+      : reason === 'capability' ? { ...enabled, capabilities: { ...enabled.capabilities, settings_write: false } } : enabled;
+    rerender(<Controls device={changed} stale={reason === 'backend'} />);
+    rerender(<Controls />);
+    expect(screen.getByRole('checkbox')).not.toBeChecked();
+    expect(screen.getByRole('button', { name: 'Apply settings' })).toBeDisabled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('does not show late Apply success after a connection change or replay the write', async () => {
+    let finish!: (response: Response) => void;
+    const fetchMock = vi.fn().mockResolvedValueOnce(Response.json({ token: 'x'.repeat(43), expires_in_seconds: 1800 }))
+      .mockReturnValueOnce(new Promise<Response>((resolve) => { finish = resolve; }));
+    vi.stubGlobal('fetch', fetchMock);
+    const { rerender } = render(<Controls />);
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply settings' }));
+    await act(async () => {});
+    rerender(<Controls stale />);
+    rerender(<Controls />); // The same device returns before the old request completes.
+    await act(async () => { finish(Response.json({ device_id: mouse.id, status: 'verified', settings: desired })); });
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Apply settings' })).toBeDisabled();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
   it.each([{ device: mouse }, { device: enabled, stale: true }, { device: { ...enabled, status: 'offline' as const } }])('blocks unavailable, stale and offline devices (%#)', (props) => {
     const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock);
     render(<Controls {...props} />);
