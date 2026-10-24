@@ -1,0 +1,14 @@
+.mouse-status { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px; }
+.mouse-status > span { color:#b6acd9; font-size:11px; letter-spacing:.12em; }
+.mouse-tabs { display:flex; gap:8px; overflow-x:auto; padding:4px 4px 12px; margin-bottom:22px; border-bottom:1px solid #303748; }
+.mouse-tabs button { flex-shrink:0; border:0; border-radius:9px; background:transparent; color:#a6b2c8; padding:11px 16px; font:inherit; font-size:13px; cursor:pointer; }
+.mouse-tabs [aria-selected=true] { background:#302c50; color:#e4dfff; }
+.mouse-grid { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(280px,1fr); gap:20px; align-items:start; }
+.mouse-preview h2 { font-size:28px; letter-spacing:-.04em; }
+.mouse-illustration { display:block; width:100%; max-height:330px; margin:12px auto 20px; }
+.mouse-form fieldset { border:0; padding:0; margin:0; min-width:0; }
+.mouse-form label:not(.tool-confirmation) { display:flex; flex-direction:column; gap:9px; margin:18px 0; color:#bdc8dc; font-size:12px; }
+.mouse-form :is(input:not([type=checkbox]),select) { font:inherit; color:#e4e8f4; background:#101724; border:1px solid #46516a; border-radius:8px; padding:10px 12px; width:100%; min-width:0; }
+.mouse-form .tool-confirmation { display:flex; gap:9px; align-items:flex-start; font-size:12px; line-height:1.6; margin:16px 0; }
+.mouse-form input[type=checkbox] { width:16px; height:16px; flex-shrink:0; }
+@media (max-width:1050px) { .mouse-grid { grid-template-columns:1fr; } }

@@ -22,6 +22,7 @@ describe('discovery views', () => {
     expect(within(card).getAllByRole('definition').map((el) => el.textContent)).toEqual(['—', '—', '—']);
     fireEvent.click(within(card).getByRole('link', { name: `View ${mouse.name} details` }));
     expect(await screen.findByRole('heading', { name: `${mouse.name}.`, level: 1 })).toBeVisible();
+    fireEvent.click(screen.getByRole('tab', { name: 'Device & profiles' }));
     expect(screen.getByRole('region', { name: 'Adapter support' })).toBeVisible();
     fireEvent.click(screen.getByRole('link', { name: '← All devices' }));
     expect(await screen.findByRole('heading', { name: 'Your peripherals.', level: 1 })).toBeVisible();
@@ -45,7 +46,7 @@ describe('discovery views', () => {
     for (const device of [mouse, keyboard, mouse, keyboard, mouse, keyboard]) {
       fireEvent.click(within(navigation).getByRole('link', { name: new RegExp(device.name) }));
       await screen.findByRole('heading', { name: `${device.name}.`, level: 1 });
-      if (device.kind === 'keyboard') fireEvent.click(screen.getByRole('tab', { name: 'Device & profiles' }));
+      fireEvent.click(screen.getByRole('tab', { name: 'Device & profiles' }));
       for (const region of ['Connection', 'Telemetry', 'Adapter support', 'Software profiles']) {
         expect(screen.getAllByRole('region', { name: region })).toHaveLength(1);
       }
