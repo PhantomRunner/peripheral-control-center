@@ -40,7 +40,8 @@ class _ProfileFile(StrictModel):
 
 class ProfileStore:
     def __init__(self, directory: Path | None = None) -> None:
-        data_home = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+        configured_home = os.environ.get('XDG_DATA_HOME')
+        data_home = Path(configured_home) if configured_home else Path.home() / '.local' / 'share'
         self.directory = directory if directory is not None else data_home / "pcc"
 
     @contextmanager

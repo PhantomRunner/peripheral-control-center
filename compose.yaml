@@ -1,0 +1,39 @@
+name: peripheral-control-center
+services:
+  pcc:
+    image: pcc:local
+    build:
+      context: .
+    user: "${PCC_UID:-1000}:${PCC_GID:-1000}"
+    # Native Linux: even inside the container, the API binds only to loopback.
+    network_mode: host
+    environment:
+      PCC_PORT: "${PCC_PORT:-8080}"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:mode=1777
+    volumes:
+      - profiles:/data
+      - type: bind
+        source: /sys
+        target: /sys
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:'+os.environ['PCC_PORT']+'/api/health',timeout=2).close()"
+      interval: 15s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
+    stop_grace_period: 30s
+volumes:
+  profiles:

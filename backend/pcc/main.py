@@ -1,6 +1,7 @@
 """Local discovery, profiles and protected explicit validated-device operations."""
 
 from typing import Annotated
+import os
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -14,6 +15,7 @@ from .telemetry_api import get_telemetry_service, router as telemetry_router
 from .studio_api import router as studio_router
 from .studio_screen_api import router as screen_router
 from .performance_api import router as performance_router
+from .frontend import mount_frontend
 
 app = FastAPI(title="Peripheral Control Center API", version="0.1.0")
 sessions = SessionStore()
@@ -43,3 +45,6 @@ def health() -> dict[str, str]:
 @app.get("/api/devices", response_model=DeviceList)
 def get_devices(service: Annotated[TelemetryService, Depends(get_telemetry_service)]) -> DeviceList:
     return DeviceList(devices=service.summaries())
+
+
+mount_frontend(app, os.environ.get('PCC_STATIC_DIR'))
