@@ -20,7 +20,7 @@ class AjazzAdapter:
             capabilities=DeviceCapabilities(control_read=True, settings_write=True),
             driver_state="read_write",
             rgb_write_options=RgbWriteOptions(brightness_steps=list(BRIGHTNESS_STEPS)),
-            studio_capabilities=StudioCapabilities(lighting_effects=True, clock_write=True, standby_write=True),
+            studio_capabilities=StudioCapabilities(lighting_effects=True, clock_write=True, standby_write=True, screen_write=True, max_screen_frames=120),
             status=(
                 "wired_detected" if wired else
                 "receiver_detected" if receiver else "offline"

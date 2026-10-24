@@ -12,6 +12,7 @@ from .settings_api import router as settings_router
 from .telemetry import TelemetryService
 from .telemetry_api import get_telemetry_service, router as telemetry_router
 from .studio_api import router as studio_router
+from .studio_screen_api import router as screen_router
 
 app = FastAPI(title="Peripheral Control Center API", version="0.1.0")
 sessions = SessionStore()
@@ -24,6 +25,7 @@ app.include_router(profile_router)
 app.include_router(settings_router)
 app.include_router(telemetry_router)
 app.include_router(studio_router)
+app.include_router(screen_router)
 
 
 @app.get("/api/session", response_model=LocalSession)

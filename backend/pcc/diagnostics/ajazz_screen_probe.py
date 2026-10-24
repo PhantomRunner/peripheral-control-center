@@ -59,13 +59,17 @@ class ScreenTransport(Protocol):
 
 
 class ScreenHidraw:
-    def __init__(self, control: rgb.HidrawFeatures, target: DataTarget, data_fd: int, numbers: frozenset[int]):
+    def __init__(self, control: rgb.HidrawFeatures, target: DataTarget, data_fd: int, numbers: frozenset[int], payload: bytes | None = None):
         self.control, self.target, self.data_fd, self.numbers = control, target, data_fd, numbers
         self.set_attempts = self.set_completed = self.output_attempts = self.output_completed = self.receipts = 0
         self.phase = 'initial_feature'
         start = bytearray(command_payload(Command.START)); start[8] = 0
-        self.control_payloads = (bytes(start), screen_config_payload(), command_payload(Command.SAVE))
-        self.payload = screen_test_payload()
+        self.payload = screen_test_payload() if payload is None else payload
+        self.total_chunks = len(self.payload) // 4096
+        if len(self.payload) % 4096 or not 1 <= self.total_chunks <= 961:
+            raise rgb.ProbeBlocked('Screen payload exceeds the bounded transfer size.')
+        config = bytearray(screen_config_payload()); config[8:10] = self.total_chunks.to_bytes(2, 'little')
+        self.control_payloads = (bytes(start), bytes(config), command_payload(Command.SAVE))
 
     def preflight(self):
         self.control.target.verify_cached_identity(); self.target.verify_cached_identity()
@@ -78,7 +82,7 @@ class ScreenHidraw:
     def set_control(self, index: int) -> None:
         if type(index) is not int or index != self.set_attempts or not 0 <= index < 3:
             raise rgb.ProbeBlocked('Screen control budget/order exceeded.')
-        if index == 2 and self.output_completed != 9:
+        if index == 2 and self.output_completed != self.total_chunks:
             raise rgb.ProbeBlocked('Never finalize an incomplete transfer.')
         self.preflight(); self.phase = ('start', 'image_config', 'save')[index]
         self.set_attempts += 1
@@ -87,7 +91,7 @@ class ScreenHidraw:
         self.set_completed += 1
 
     def send_chunk(self, index: int) -> None:
-        if type(index) is not int or index != self.output_attempts or not 0 <= index < 9 or self.set_completed != 2:
+        if type(index) is not int or index != self.output_attempts or not 0 <= index < self.total_chunks or self.set_completed != 2:
             raise rgb.ProbeBlocked('Screen data budget/order exceeded.')
         self.preflight(); self.phase = 'screen_data'; self.output_attempts += 1
         chunk = self.payload[index * 4096:(index + 1) * 4096]
@@ -108,7 +112,7 @@ class ScreenHidraw:
 
 
 @contextmanager
-def open_screen() -> Iterator[ScreenHidraw]:
+def open_screen(payload: bytes | None = None) -> Iterator[ScreenHidraw]:
     if os.geteuid() == 0: raise rgb.ProbeBlocked('Do not run as root.')
     target, data = rgb.discover_target(), discover_data()
     if target.interface.parent != data.interface.parent:
@@ -130,15 +134,16 @@ def open_screen() -> Iterator[ScreenHidraw]:
                 os.read(descriptor, 65)
             if select.select([descriptor], [], [], 0)[0]:
                 raise rgb.ProbeBlocked('Data interface is unexpectedly active before transfer.')
-            yield ScreenHidraw(control, data, descriptor, numbers)
+            yield ScreenHidraw(control, data, descriptor, numbers, payload)
         finally: os.close(descriptor)
 
 
-def observe_screen(transport: ScreenTransport) -> dict:
+def observe_screen(transport: ScreenTransport, chunks: int = 9) -> dict:
+    if type(chunks) is not int or not 1 <= chunks <= 961: raise rgb.ProbeBlocked('Invalid transfer budget.')
     if len(transport.get_feature()) != 64: raise rgb.ProbeBlocked('Incomplete initial feature reply.')
     for index, command in ((0, Command.START), (1, Command.IMAGE)):
         transport.set_control(index); time.sleep(.04); parse_ack(transport.get_feature(), command)
-    for index in range(9): transport.send_chunk(index)
+    for index in range(chunks): transport.send_chunk(index)
     transport.set_control(2); time.sleep(.04); parse_ack(transport.get_feature(), Command.SAVE)
     return {'status': 'screen_transfer_completed_visual_check_required', 'operation': 'screen', 'usb_id': '0c45:8009',
             'requested': 'static 128×128 blue/white checkerboard', 'actual_settings': None, 'persistence_verified': False,
