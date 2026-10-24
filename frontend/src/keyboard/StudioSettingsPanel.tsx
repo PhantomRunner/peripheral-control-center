@@ -4,6 +4,7 @@ import { exportStudioProfile, parseStudioProfile, type StudioProfile } from './s
 import type { Device } from '../types';
 import { StudioActionControls } from './StudioActionControls';
 import { localClockTime } from './studioApi';
+import { AutoClockControls } from './AutoClockControls';
 
 export function StudioSettingsPanel({ profile, onChange, device, stale, onUpdated }: { profile: StudioProfile; onChange: (value: StudioProfile) => void; device: Device; stale: boolean; onUpdated: () => Promise<void> }) {
   const [notice, setNotice] = useState<{ error: boolean; text: string } | null>(null);
@@ -33,8 +34,7 @@ export function StudioSettingsPanel({ profile, onChange, device, stale, onUpdate
       <button className="studio-text-button" type="button" onClick={() => setClock(new Date())}>Refresh clock preview</button>
       <StudioActionControls device={device} stale={stale} supported={device.studio_capabilities?.clock_write === true} intent={() => ({ operation: 'clock', local_time: localClockTime() })} label="Sync keyboard clock" busy={busy} onBusy={setBusy} onUpdated={onUpdated} />
       <label>Automatic sync interval (minutes)<input type="number" min="1" max="1440" value={profile.clockIntervalMinutes} onChange={event => onChange({ ...profile, clockIntervalMinutes: Math.max(1, Math.min(1440, Math.round(Number(event.target.value)))) })} /></label>
-      <label className="tool-confirmation"><input type="checkbox" disabled checked={false} readOnly />Keep keyboard clock in sync</label>
-      <p className="device-note">Clock writes and automatic sync are unavailable until the clock protocol is validated. No background write runs.</p>
+      <AutoClockControls device={device} stale={stale} intervalMinutes={profile.clockIntervalMinutes} busy={busy} onBusy={setBusy} onUpdated={onUpdated} />
     </section>
     <section className="panel studio-form" aria-labelledby="studio-profile-title">
       <div className="studio-kicker">LOCAL / PORTABLE</div><h2 id="studio-profile-title">Studio profile</h2>
