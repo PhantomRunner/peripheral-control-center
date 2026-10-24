@@ -65,7 +65,7 @@ export default function App() {
         ) : devices.length ? (
           <section className="devices" aria-label="Known peripherals">{devices.map((device) => <DeviceCard key={device.id} device={device} stale={stale} />)}</section>
         ) : <div className="empty-state"><h3>No registered devices</h3><p>The backend returned no known device adapters.</p></div>}
-        <section className="notice"><span className="notice-icon" aria-hidden="true">i</span><div><strong>Read-only discovery</strong><p>USB detection does not verify a wireless link. Hardware reads are manual; unsupported readings stay unavailable.</p></div></section>
+        <section className="notice"><span className="notice-icon" aria-hidden="true">i</span><div><strong>Read-only discovery</strong><p>USB detection does not verify a wireless link. Hardware reads require an explicit action or opt-in battery polling; unsupported readings stay unavailable.</p></div></section>
       </main>
     </div>
   );

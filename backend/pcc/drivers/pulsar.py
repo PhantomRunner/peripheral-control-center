@@ -22,7 +22,7 @@ class PulsarAdapter:
             driver_state="read_write",
             write_options=MouseWriteOptions(dpi=list(DPI_RECORDS), polling_rate_hz=list(POLLING_RECORDS)),
             note=(
-                "8K receiver detected. Readings update manually; wireless link is not verified."
+                "8K receiver detected. Hardware reads require explicit action or opt-in battery polling; wireless link is not verified."
                 if receiver else "8K receiver not detected."
             ),
         )

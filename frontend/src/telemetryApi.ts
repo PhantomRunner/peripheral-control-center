@@ -12,6 +12,7 @@ export class TelemetryClient {
       if (cause instanceof LocalApiError) {
         if (cause.status === 409) throw new Error('Close other device-control tools before reading.');
         if (cause.status === 423) throw new Error('A device read is already running.');
+        if (cause.status === 429) throw new Error('Battery polling is limited to once per minute. Wait before starting again.');
         if (cause.status === 503) throw new Error('Hardware read was not confirmed. Check the device connection and close other control tools.');
       }
       throw cause;
@@ -20,8 +21,8 @@ export class TelemetryClient {
     return value as Record<string, unknown>;
   }
 
-  async read(): Promise<TelemetrySnapshot> {
-    const data = await this.requestRead('/api/devices/pulsar_susanto_x/telemetry/read');
+  async read(polling = false): Promise<TelemetrySnapshot> {
+    const data = await this.requestRead(`/api/devices/pulsar_susanto_x/telemetry/${polling ? 'poll' : 'read'}`);
     if (data.device_id !== 'pulsar_susanto_x' || typeof data.battery_percent !== 'number'
       || !Number.isInteger(data.battery_percent) || data.battery_percent < 0 || data.battery_percent > 100
       || typeof data.charging !== 'boolean'

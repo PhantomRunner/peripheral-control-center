@@ -1,4 +1,4 @@
-"""Protected explicit hardware reads; no background polling or settings operations."""
+"""Protected reads and rate-limited opt-in polling; no background worker."""
 
 from typing import Annotated
 
@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from .config_telemetry import ConfigSnapshot
 from .keyboard_control import ControlSnapshot
-from .telemetry import ReadTelemetryRequest, TelemetryBusy, TelemetryConsentRequired, TelemetryService, TelemetrySnapshot, TelemetryUnavailable
+from .telemetry import ReadTelemetryRequest, TelemetryBusy, TelemetryConsentRequired, TelemetryCooldown, TelemetryService, TelemetrySnapshot, TelemetryUnavailable
 
 router = APIRouter(prefix="/api/devices")
 _service = TelemetryService()
@@ -18,8 +18,19 @@ def get_telemetry_service() -> TelemetryService:
 
 @router.post("/pulsar_susanto_x/telemetry/read", response_model=TelemetrySnapshot)
 def read_pulsar_telemetry(body: ReadTelemetryRequest, service: Annotated[TelemetryService, Depends(get_telemetry_service)]) -> TelemetrySnapshot:
+    return _battery_read(body, service, polling=False)
+
+
+@router.post("/pulsar_susanto_x/telemetry/poll", response_model=TelemetrySnapshot)
+def poll_pulsar_telemetry(body: ReadTelemetryRequest, service: Annotated[TelemetryService, Depends(get_telemetry_service)]) -> TelemetrySnapshot:
+    return _battery_read(body, service, polling=True)
+
+
+def _battery_read(body: ReadTelemetryRequest, service: TelemetryService, *, polling: bool) -> TelemetrySnapshot:
     try:
-        return service.read(vendor_tools_closed=body.vendor_tools_closed)
+        return service.read(vendor_tools_closed=body.vendor_tools_closed, polling=polling)
+    except TelemetryCooldown as error:
+        raise HTTPException(429, "Wait before polling battery again.", headers={"Retry-After": str(error.retry_after)}) from None
     except TelemetryConsentRequired:
         raise HTTPException(409, "Close other device-control tools before reading.") from None
     except TelemetryBusy:

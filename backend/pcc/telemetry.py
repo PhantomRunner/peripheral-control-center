@@ -4,9 +4,11 @@ Enumeration only attaches the last timestamped observation. It never starts HID 
 Standalone children retain descriptor/ownership checks and fixed output budgets.
 """
 
+import math
 import subprocess
 import sys
 import threading
+import time
 from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
@@ -31,6 +33,15 @@ class TelemetryBusy(Exception):
 
 class TelemetryConsentRequired(Exception):
     pass
+
+
+POLL_INTERVAL_SECONDS = 60
+
+
+class TelemetryCooldown(Exception):
+    def __init__(self, retry_after: int) -> None:
+        self.retry_after = retry_after
+        super().__init__("Battery polling is limited to once per minute.")
 
 
 class ReadTelemetryRequest(StrictModel):
@@ -79,7 +90,8 @@ def read_pulsar_snapshot() -> TelemetrySnapshot:
 class TelemetryService:
     def __init__(self, reader: Callable[[], TelemetrySnapshot] = read_pulsar_snapshot,
                  *, config_reader: Callable[[], ConfigSnapshot] = read_pulsar_config,
-                 control_reader: Callable[[], ControlSnapshot] = read_ajazz_control) -> None:
+                 control_reader: Callable[[], ControlSnapshot] = read_ajazz_control,
+                 clock: Callable[[], float] = time.monotonic) -> None:
         self._reader = reader
         self._config_reader = config_reader
         self._control_reader = control_reader
@@ -91,6 +103,8 @@ class TelemetryService:
         self._presence: dict[str, bool] = {}
         self._state_lock = threading.Lock()
         self._operation_lock = threading.Lock()
+        self._clock = clock
+        self._battery_finished_at: float | None = None
 
     def summaries(self) -> list[DeviceSummary]:
         with self._state_lock:
@@ -144,13 +158,19 @@ class TelemetryService:
         if not self._presence.get(device_id) or self._connection_generation[device_id] != generation:
             raise TelemetryUnavailable("USB connection changed during the read.")
 
-    def read(self, *, vendor_tools_closed: bool) -> TelemetrySnapshot:
+    def read(self, *, vendor_tools_closed: bool, polling: bool = False) -> TelemetrySnapshot:
         if vendor_tools_closed is not True:
             raise TelemetryConsentRequired("Close other device-control tools before reading.")
         if not self._operation_lock.acquire(blocking=False):
             raise TelemetryBusy("A hardware read is already running.")
+        attempted = False
         try:
+            if polling and self._battery_finished_at is not None:
+                remaining = POLL_INTERVAL_SECONDS - (self._clock() - self._battery_finished_at)
+                if remaining > 0:
+                    raise TelemetryCooldown(math.ceil(remaining))
             connection = self._connection("pulsar_susanto_x")
+            attempted = True
             snapshot = self._reader()
             self.summaries()
             with self._state_lock:
@@ -162,6 +182,8 @@ class TelemetryService:
                 self._snapshot = None
             raise TelemetryUnavailable("Battery/firmware read was not confirmed.") from None
         finally:
+            if attempted:
+                self._battery_finished_at = self._clock()
             self._operation_lock.release()
 
     def read_config(self, *, vendor_tools_closed: bool) -> ConfigSnapshot:

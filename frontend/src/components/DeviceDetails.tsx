@@ -3,6 +3,7 @@ import { DeviceMetrics, DeviceStatus } from './DeviceCard';
 import { TelemetryControls } from './TelemetryControls';
 import { KeyboardControl } from './KeyboardControl';
 import { hardwareContext } from '../hardwareContext';
+import { BatteryPolling } from './BatteryPolling';
 
 const capabilities: [keyof DeviceCapabilities, string][] = [
   ['usb_discovery', 'USB discovery'], ['battery_read', 'Battery reading'],
@@ -29,12 +30,13 @@ export function DeviceDetails({ device, stale, onTelemetryRead }: { device: Devi
       </section>
       <section className="panel" aria-labelledby="telemetry-title">
         <h2 id="telemetry-title">Telemetry</h2>
-        <p className="device-note">{device.capabilities.battery_read || device.capabilities.firmware_read ? 'Readings update only on request. Polling is the stored device setting. Unsupported readings stay unavailable.' : 'Values stay unavailable until a validated live read is implemented.'}</p>
+        <p className="device-note">{device.capabilities.battery_read || device.capabilities.firmware_read || device.capabilities.dpi_read || device.capabilities.polling_rate_read ? 'Readings update on request or through opt-in battery polling. Polling is the stored device setting. Unsupported readings stay unavailable.' : 'Values stay unavailable until a validated live read is implemented.'}</p>
         <DeviceMetrics device={device} />
         <dl className="facts"><div><dt>Firmware version</dt><dd>{device.firmware_version ?? '—'}</dd></div></dl>
         {device.telemetry_updated_at && <p className="device-note">Last hardware read: {new Date(device.telemetry_updated_at).toLocaleString()}</p>}
         {device.settings_updated_at && <p className="device-note">Last DPI/polling read: {new Date(device.settings_updated_at).toLocaleString()}</p>}
         {onTelemetryRead && device.id === 'pulsar_susanto_x' && ((device.capabilities.battery_read && device.capabilities.firmware_read) || (device.capabilities.dpi_read && device.capabilities.polling_rate_read)) && <TelemetryControls key={hardwareContext(device, stale)} device={device} stale={stale} onUpdated={onTelemetryRead} />}
+        {onTelemetryRead && device.id === 'pulsar_susanto_x' && device.capabilities.battery_read && device.capabilities.firmware_read && <BatteryPolling key={`poll:${hardwareContext(device, stale)}`} device={device} stale={stale} onUpdated={onTelemetryRead} />}
       </section>
       <section className="panel capabilities" aria-labelledby="capabilities-title">
         <h2 id="capabilities-title">Adapter support</h2>

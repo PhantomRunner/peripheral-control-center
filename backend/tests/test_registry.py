@@ -83,7 +83,7 @@ def test_default_registry_preserves_usb_presence_and_unknown_telemetry(
     assert keyboard.connection.wired_usb_present == ("0c45:8009" in present)
     assert keyboard.connection.receiver_usb_present == ("0c45:fdfd" in present)
     if mouse.status == "receiver_detected":
-        assert mouse.note == "8K receiver detected. Readings update manually; wireless link is not verified."
+        assert mouse.note == "8K receiver detected. Hardware reads require explicit action or opt-in battery polling; wireless link is not verified."
     if keyboard.status == "receiver_detected":
         assert keyboard.note == (
             "Only the 2.4 GHz receiver is detected; this does not confirm keyboard connectivity."
