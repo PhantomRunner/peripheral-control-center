@@ -1,3 +1,5 @@
+import type { PerformanceCapabilities } from './mouse/performance';
+
 export type DeviceCapabilities = {
   usb_discovery: boolean;
   battery_read: boolean;
@@ -26,6 +28,7 @@ export type Device = {
   write_options: { dpi: number[]; polling_rate_hz: number[]; profile_index: number; active_stage_index: number; firmware_version: string } | null;
   rgb_write_options: { mode: 'static'; brightness_steps: number[]; feedback: 'acknowledged'; may_persist: true } | null;
   studio_capabilities?: { lighting_effects: boolean; clock_write: boolean; standby_write: boolean; screen_write: boolean; max_screen_frames: number } | null;
+  performance_capabilities?: PerformanceCapabilities | null;
   note: string;
   capabilities: DeviceCapabilities;
   connection: {

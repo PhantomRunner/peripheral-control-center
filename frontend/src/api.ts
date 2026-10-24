@@ -1,4 +1,5 @@
 import type { Device, DeviceCapabilities } from './types';
+import { isPerformanceCapabilities } from './mouse/performance';
 
 const capabilityKeys: (keyof DeviceCapabilities)[] = [
   'usb_discovery', 'battery_read', 'dpi_read', 'polling_rate_read',
@@ -35,6 +36,7 @@ function isDevice(value: unknown): value is Device {
     && (value.control_checked_at === null || (typeof value.control_checked_at === 'string'
       && /^\d{4}-\d{2}-\d{2}T/.test(value.control_checked_at) && Number.isFinite(Date.parse(value.control_checked_at))))
     && (value.driver_state === 'not_implemented' || value.driver_state === 'read_only' || value.driver_state === 'read_write')
+    && (value.performance_capabilities === undefined || value.performance_capabilities === null || isPerformanceCapabilities(value.performance_capabilities))
     && (studio === undefined || studio === null || (isRecord(studio)
       && ['lighting_effects','clock_write','standby_write','screen_write'].every(key => typeof studio[key] === 'boolean')
       && typeof studio.max_screen_frames === 'number' && Number.isInteger(studio.max_screen_frames)

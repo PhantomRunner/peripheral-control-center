@@ -7,6 +7,7 @@ export class LocalApiError extends Error {
 }
 
 export class LocalApiClient {
+  constructor(private readonly timeoutMs = 8_000) {}
   private session: { token: string; expires: number } | null = null;
 
   private async exchange(path: string, options: RequestInit): Promise<{ ok: boolean; status: number; value: unknown }> {
@@ -15,7 +16,7 @@ export class LocalApiClient {
     options.signal?.addEventListener('abort', abort, { once: true });
     if (options.signal?.aborted) controller.abort();
     let timedOut = false;
-    const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 8_000);
+    const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, this.timeoutMs);
     try {
       const response = await fetch(path, { ...options, signal: controller.signal });
       let value: unknown = null;
