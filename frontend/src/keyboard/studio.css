@@ -34,6 +34,16 @@
 .studio-form .tool-confirmation input[type=checkbox] { width: 16px; height: 16px; min-height: 16px; padding: 0; }
 .studio-form .apply-controls { margin-top: 20px; }
 .studio-form .apply-controls .device-note { font-size: 11px; }
+.studio-screen-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr); gap: 20px; align-items: start; }
+.studio-screen-preview h2 { font-size: 28px; margin-top: 9px; }
+.studio-display { display: flex; flex-direction: column; gap: 20px; align-items: center; padding: 34px 15px; margin-top: 24px; background: radial-gradient(ellipse, #252a41, #101622 75%); border-radius: 14px; }
+.studio-display canvas { width: min(256px, 100%); aspect-ratio: 1; height: auto; image-rendering: pixelated; background: #03080f; border: 8px solid #080e18; border-radius: 12px; box-shadow: 0 0 0 1px #434e66, 0 20px 40px #02050c; }
+.studio-display span { font-size: 12px; color: #9eabc1; max-width: 100%; overflow-wrap: anywhere; }
+.studio-media-info { font-family: ui-monospace, monospace; font-size: 11px; color: #b6b9dd; }
+.studio-form fieldset + fieldset { border-top: 1px solid #394256; margin-top: 24px; padding-top: 20px; }
+.studio-form legend { color: #d3cdef; font-size: 13px; font-weight: 600; padding-top: 14px; }
+.studio-form input[type=color] { min-height: 38px; padding: 3px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 @media (max-width: 1250px) { .studio-lighting-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1000px) { .studio-screen-grid { grid-template-columns: 1fr; } }
 @media (max-width: 680px) { .studio-status-bar { flex-wrap: wrap; } .studio-tabs [role=tab] { padding: 10px 12px; } }
